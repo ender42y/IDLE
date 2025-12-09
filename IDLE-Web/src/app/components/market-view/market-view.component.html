@@ -1,0 +1,102 @@
+<div class="market-view">
+  <div class="market-header">
+    <h2>Galactic Market</h2>
+    <p class="market-info">
+      Instant trading with price spread. Physical trade routes offer better rates.
+    </p>
+  </div>
+
+  <div class="market-content">
+    <!-- Resource List -->
+    <div class="panel resources-panel">
+      <h3>Available Resources</h3>
+      <div class="resources-table">
+        <div class="table-header">
+          <span class="col-name">Resource</span>
+          <span class="col-tier">Tier</span>
+          <span class="col-stock">In System</span>
+          <span class="col-buy">Buy Price</span>
+          <span class="col-sell">Sell Price</span>
+        </div>
+        <div class="table-body">
+          @for (resource of resourceList(); track resource.id) {
+            <div
+              class="table-row"
+              [class.selected]="selectedResource === resource.id"
+              (click)="selectResource(resource.id)">
+              <span class="col-name">{{ resource.name }}</span>
+              <span class="col-tier tier-{{ resource.tier }}">T{{ resource.tier }}</span>
+              <span class="col-stock">{{ resource.inStock | number:'1.0-0' }}</span>
+              <span class="col-buy">{{ resource.buyPrice | number }}</span>
+              <span class="col-sell">{{ resource.sellPrice | number }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Panel -->
+    <div class="panel trade-panel">
+      <h3>Trade</h3>
+      @if (selectedResource) {
+        <div class="trade-form">
+          <div class="selected-resource">
+            Trading: <strong>{{ resourceList() | json }}</strong>
+          </div>
+
+          <div class="amount-control">
+            <label>Amount:</label>
+            <div class="amount-input-group">
+              <button class="amount-btn" (click)="setAmount(tradeAmount - 100)">-100</button>
+              <button class="amount-btn" (click)="setAmount(tradeAmount - 10)">-10</button>
+              <input
+                type="number"
+                [(ngModel)]="tradeAmount"
+                min="1"
+                class="amount-input">
+              <button class="amount-btn" (click)="setAmount(tradeAmount + 10)">+10</button>
+              <button class="amount-btn" (click)="setAmount(tradeAmount + 100)">+100</button>
+            </div>
+            <button class="max-btn" (click)="sellAll()">Max</button>
+          </div>
+
+          <div class="trade-actions">
+            <div class="trade-action buy-action">
+              <div class="action-info">
+                <span class="action-label">Buy</span>
+                <span class="action-cost">Cost: {{ getBuyCost() | number }} credits</span>
+              </div>
+              <button
+                class="action-btn buy-btn"
+                [disabled]="!canBuy()"
+                (click)="buy()">
+                Buy {{ tradeAmount }}
+              </button>
+            </div>
+
+            <div class="trade-action sell-action">
+              <div class="action-info">
+                <span class="action-label">Sell</span>
+                <span class="action-value">Value: {{ getSellValue() | number }} credits</span>
+              </div>
+              <button
+                class="action-btn sell-btn"
+                [disabled]="!canSell()"
+                (click)="sell()">
+                Sell {{ tradeAmount }}
+              </button>
+            </div>
+          </div>
+
+          <div class="current-balance">
+            Your Credits: <strong>{{ credits() | number }}</strong>
+          </div>
+        </div>
+      } @else {
+        <div class="no-selection">
+          <p>Select a resource to trade</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>
