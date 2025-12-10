@@ -1,0 +1,167 @@
+import { Component, inject, computed, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { GameStateService } from '../../services/game-state.service';
+import { ExplorationService } from '../../services/exploration.service';
+import { StarSystem, getDistanceFromHome } from '../../models/star-system.model';
+
+@Component({
+  selector: 'app-galaxy-view',
+  templateUrl: './galaxy-view.component.html',
+  styleUrl: './galaxy-view.component.css'
+})
+export class GalaxyViewComponent implements AfterViewInit {
+  @ViewChild('galaxyCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  private gameState = inject(GameStateService);
+  private explorationService = inject(ExplorationService);
+
+  readonly systems = this.gameState.systems;
+  readonly selectedSystem = this.gameState.selectedSystem;
+  readonly ships = this.gameState.ships;
+
+  viewOffset = { x: 0, y: 0 };
+  viewScale = 20; // pixels per light year
+
+  readonly systemsList = computed(() => {
+    return Object.values(this.systems()).filter(s => s.discovered);
+  });
+
+  readonly idleScouts = computed(() => {
+    return Object.values(this.ships()).filter(
+      s => s.type === 'scout' && s.status === 'idle'
+    );
+  });
+
+  ngAfterViewInit(): void {
+    this.centerOnHome();
+    this.render();
+  }
+
+  centerOnHome(): void {
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas) return;
+
+    this.viewOffset = {
+      x: canvas.width / 2,
+      y: canvas.height / 2
+    };
+  }
+
+  render(): void {
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid
+    this.drawGrid(ctx, canvas);
+
+    // Draw systems
+    for (const system of this.systemsList()) {
+      this.drawSystem(ctx, system);
+    }
+  }
+
+  private drawGrid(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+    ctx.strokeStyle = 'rgba(60, 60, 80, 0.3)';
+    ctx.lineWidth = 1;
+
+    const gridSize = this.viewScale * 5; // 5 ly grid
+
+    for (let x = this.viewOffset.x % gridSize; x < canvas.width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+
+    for (let y = this.viewOffset.y % gridSize; y < canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+  }
+
+  private drawSystem(ctx: CanvasRenderingContext2D, system: StarSystem): void {
+    const x = this.viewOffset.x + system.coordinates.x * this.viewScale;
+    const y = this.viewOffset.y - system.coordinates.y * this.viewScale;
+
+    const isSelected = this.selectedSystem()?.id === system.id;
+    const isHome = system.coordinates.x === 0 && system.coordinates.y === 0;
+
+    // Glow effect
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 20);
+    const color = this.getSystemColor(system);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x - 20, y - 20, 40, 40);
+
+    // System dot
+    ctx.beginPath();
+    ctx.arc(x, y, isHome ? 8 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    if (isSelected) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Label
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(system.name, x, y + 18);
+  }
+
+  private getSystemColor(system: StarSystem): string {
+    switch (system.rarity) {
+      case 'legendary': return '#ff9800';
+      case 'exceptional': return '#9c27b0';
+      case 'rare': return '#2196f3';
+      case 'uncommon': return '#4caf50';
+      default: return '#9e9e9e';
+    }
+  }
+
+  selectSystem(system: StarSystem): void {
+    this.gameState.selectSystem(system.id);
+  }
+
+  onCanvasClick(event: MouseEvent): void {
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+
+    // Find clicked system
+    for (const system of this.systemsList()) {
+      const x = this.viewOffset.x + system.coordinates.x * this.viewScale;
+      const y = this.viewOffset.y - system.coordinates.y * this.viewScale;
+      const distance = Math.sqrt((clickX - x) ** 2 + (clickY - y) ** 2);
+
+      if (distance < 15) {
+        this.selectSystem(system);
+        return;
+      }
+    }
+  }
+
+  launchScout(): void {
+    const scouts = this.idleScouts();
+    if (scouts.length === 0) return;
+
+    this.explorationService.launchScoutMission(scouts[0].id);
+  }
+
+  getDistance(system: StarSystem): string {
+    return getDistanceFromHome(system.coordinates).toFixed(1);
+  }
+}

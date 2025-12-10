@@ -1,0 +1,46 @@
+<div class="galaxy-view">
+  <div class="galaxy-sidebar">
+    <h3>Discovered Systems</h3>
+    <div class="systems-list">
+      @for (system of systemsList(); track system.id) {
+        <div
+          class="system-item"
+          [class.selected]="selectedSystem()?.id === system.id"
+          (click)="selectSystem(system)">
+          <div class="system-info">
+            <span class="system-name">{{ system.name }}</span>
+            <span class="system-rarity rarity-{{ system.rarity }}">{{ system.rarity }}</span>
+          </div>
+          <div class="system-details">
+            <span>{{ getDistance(system) }} ly</span>
+            <span>{{ system.bodyIds.length }} bodies</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="scout-controls">
+      <h4>Exploration</h4>
+      @if (idleScouts().length > 0) {
+        <button class="scout-btn" (click)="launchScout()">
+          Launch Scout ({{ idleScouts().length }} available)
+        </button>
+      } @else {
+        <p class="no-scouts">No scouts available</p>
+      }
+    </div>
+  </div>
+
+  <div class="galaxy-map-container">
+    <canvas
+      #galaxyCanvas
+      class="galaxy-canvas"
+      width="800"
+      height="600"
+      (click)="onCanvasClick($event)">
+    </canvas>
+    <div class="map-controls">
+      <button (click)="centerOnHome()">Center on Sol</button>
+    </div>
+  </div>
+</div>
