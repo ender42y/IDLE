@@ -23,6 +23,7 @@ export interface GameStats {
   totalCreditsEarned: number;
   shipsLost: number;
   maxPopulation: number;
+  scoutMissionsCompleted: number; // Used for scaling mission duration
 }
 
 export interface Notification {
@@ -94,7 +95,8 @@ export const INITIAL_GAME_STATS: GameStats = {
   totalResourcesProduced: {} as Record<ResourceId, number>,
   totalCreditsEarned: 0,
   shipsLost: 0,
-  maxPopulation: 0
+  maxPopulation: 0,
+  scoutMissionsCompleted: 0
 };
 
 export const GAME_VERSION = '0.1.0';

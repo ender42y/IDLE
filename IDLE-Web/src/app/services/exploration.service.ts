@@ -106,17 +106,17 @@ export class ExplorationService {
     // Consume fuel
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
-    // Calculate timing
-    const scoutSpeed = (ship.scoutSpeed ?? 2) * (ship.speedModifier ?? 1);
-    const outboundTimeHours = distance / scoutSpeed;
-    const explorationTimeHours = 1; // 1 hour to explore
-    const returnTimeHours = distance / scoutSpeed;
-    const totalTimeHours = outboundTimeHours + explorationTimeHours + returnTimeHours;
+    // Calculate timing using scaling duration
+    // Base: 5 minutes, increases by 10% per completed mission
+    const missionDurationMs = this.calculateMissionDuration(ship);
+    const outboundDurationMs = missionDurationMs * 0.4; // 40% travel out
+    const explorationDurationMs = missionDurationMs * 0.2; // 20% exploring
+    const returnDurationMs = missionDurationMs * 0.4; // 40% return
 
     const now = Date.now();
-    const outboundArrival = now + (outboundTimeHours * 60 * 60 * 1000);
-    const explorationComplete = outboundArrival + (explorationTimeHours * 60 * 60 * 1000);
-    const returnTime = now + (totalTimeHours * 60 * 60 * 1000);
+    const outboundArrival = now + outboundDurationMs;
+    const explorationComplete = outboundArrival + explorationDurationMs;
+    const returnTime = now + missionDurationMs;
 
     // Create mission
     const mission: ScoutMission = {
@@ -143,7 +143,7 @@ export class ExplorationService {
     this.gameState.addNotification({
       type: 'info',
       title: 'Scout Launched',
-      message: `${ship.name} departing for exploration. ETA: ${this.formatHours(totalTimeHours)}`
+      message: `${ship.name} departing for exploration. ETA: ${this.formatDuration(missionDurationMs)}`
     });
 
     return true;
@@ -261,8 +261,9 @@ export class ExplorationService {
       arrivalTime: undefined
     });
 
-    // Mark mission complete
+    // Mark mission complete and increment counter for scaling duration
     this.gameState.updateScoutMission(mission.id, { status: 'completed' });
+    this.gameState.incrementStat('scoutMissionsCompleted');
 
     // Notification
     if (discoveredSystem) {
@@ -359,5 +360,58 @@ export class ExplorationService {
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
     return `${days}d ${remainingHours.toFixed(0)}h`;
+  }
+
+  /**
+   * Calculate mission duration based on completed missions
+   * Base: 5 minutes, increases by 10% per completed mission
+   * Ship speed modifier can reduce duration (upgrades can help)
+   */
+  private calculateMissionDuration(ship: Ship): number {
+    const state = this.gameState.getState();
+    const completedMissions = state.stats.scoutMissionsCompleted;
+    const baseDurationMinutes = 5;
+    const scaleFactor = Math.pow(1.10, completedMissions);
+    const durationMinutes = baseDurationMinutes * scaleFactor;
+
+    // Apply ship speed modifier (higher speed = shorter missions)
+    const speedModifier = ship.speedModifier ?? 1;
+    const adjustedDurationMinutes = durationMinutes / speedModifier;
+
+    // Convert to milliseconds
+    return adjustedDurationMinutes * 60 * 1000;
+  }
+
+  /**
+   * Get the current mission duration for display purposes
+   */
+  getNextMissionDuration(): { minutes: number; formatted: string } {
+    const state = this.gameState.getState();
+    const completedMissions = state.stats.scoutMissionsCompleted;
+    const baseDurationMinutes = 5;
+    const scaleFactor = Math.pow(1.10, completedMissions);
+    const durationMinutes = baseDurationMinutes * scaleFactor;
+
+    return {
+      minutes: durationMinutes,
+      formatted: this.formatDuration(durationMinutes * 60 * 1000)
+    };
+  }
+
+  /**
+   * Format milliseconds as human-readable duration
+   */
+  private formatDuration(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes < 60) {
+      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
   }
 }
