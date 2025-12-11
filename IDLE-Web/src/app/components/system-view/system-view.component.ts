@@ -28,17 +28,32 @@ export class SystemViewComponent {
     const system = this.selectedSystem();
     if (!system) return [];
 
-    return system.bodyIds
+    const allBodies = system.bodyIds
       .map(id => this.bodies()[id])
-      .filter(Boolean)
+      .filter(Boolean);
+
+    // Separate into primary bodies (stars/planets) and moons
+    const primaryBodies = allBodies
+      .filter(b => !b.parentBodyId)
       .sort((a, b) => {
-        // Sort: Star first, then planets, then moons
+        // Star first, then sort by name
         if (a.type === 'star') return -1;
         if (b.type === 'star') return 1;
-        if (a.parentBodyId && !b.parentBodyId) return 1;
-        if (!a.parentBodyId && b.parentBodyId) return -1;
         return a.name.localeCompare(b.name);
       });
+
+    // Build final list with moons placed directly after their parent
+    const result: CelestialBody[] = [];
+    for (const body of primaryBodies) {
+      result.push(body);
+      // Find and add moons of this body, sorted by name
+      const moons = allBodies
+        .filter(b => b.parentBodyId === body.id)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      result.push(...moons);
+    }
+
+    return result;
   });
 
   readonly systemResources = computed(() => {
