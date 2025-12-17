@@ -107,9 +107,10 @@ export class ExplorationService {
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
     // Calculate timing based on distance and ship speed
-    const scoutSpeed = (ship.scoutSpeed ?? 100) * (ship.speedModifier ?? 1);
+    // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min
+    const scoutSpeed = (ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1);
     const outboundTimeHours = distance / scoutSpeed;
-    const explorationTimeHours = 1; // 1 hour to explore
+    const explorationTimeHours = 1 / 60; // 1 minute to explore
     const returnTimeHours = distance / scoutSpeed;
     const totalTimeHours = outboundTimeHours + explorationTimeHours + returnTimeHours;
 
