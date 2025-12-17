@@ -106,8 +106,8 @@ export class ExplorationService {
     // Consume fuel
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
-    // Calculate timing
-    const scoutSpeed = (ship.scoutSpeed ?? 2) * (ship.speedModifier ?? 1);
+    // Calculate timing based on distance and ship speed
+    const scoutSpeed = (ship.scoutSpeed ?? 100) * (ship.speedModifier ?? 1);
     const outboundTimeHours = distance / scoutSpeed;
     const explorationTimeHours = 1; // 1 hour to explore
     const returnTimeHours = distance / scoutSpeed;
