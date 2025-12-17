@@ -93,19 +93,16 @@
 
 .scout-btn {
   width: 100%;
-  padding: 0.75rem;
-  border: none;
-  background: linear-gradient(135deg, #4fc3f7, #7c4dff);
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-.scout-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 195, 247, 0.4);
+.scout-btn mat-icon {
+  font-size: 20px;
+  height: 20px;
+  width: 20px;
 }
 
 .no-scouts {
