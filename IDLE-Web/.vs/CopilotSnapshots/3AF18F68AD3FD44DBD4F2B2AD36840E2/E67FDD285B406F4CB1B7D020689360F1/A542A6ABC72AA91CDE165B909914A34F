@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
 import { ResourceId } from '../models/resource.model';
 import { StarSystem, SYSTEM_STATE_DEFINITIONS, SystemState } from '../models/star-system.model';

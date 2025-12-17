@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
 import { ResourceId } from '../models/resource.model';
 import { StarSystem, SYSTEM_STATE_DEFINITIONS, SystemState } from '../models/star-system.model';
@@ -63,8 +63,8 @@ export class PopulationService {
         standardOfLiving: Math.round(standardOfLiving)
       });
 
-      // Check for state changes based on conditions (pass deltaHours so comparisons use the same time basis)
-      this.checkSystemStateChanges(system, consumed, deltaHours);
+      // Check for state changes based on conditions
+      this.checkSystemStateChanges(system, consumed);
     }
   }
 
@@ -237,12 +237,9 @@ export class PopulationService {
   /**
    * Check for state changes based on conditions
    */
-  private checkSystemStateChanges(system: StarSystem, consumed: Record<ResourceId, number>, deltaHours: number): void {
+  private checkSystemStateChanges(system: StarSystem, consumed: Record<ResourceId, number>): void {
     // Check for famine
-    // foodNeededPerHour is the required food in t/h; scale by deltaHours to get the amount
-    // that should have been consumed during this tick (same units as `consumed` values)
-    const foodNeededPerHour = (system.totalPopulation / 1000) * CONSUMPTION_RATES[ResourceId.PreparedFoods];
-    const foodNeeded = foodNeededPerHour * deltaHours;
+    const foodNeeded = (system.totalPopulation / 1000) * CONSUMPTION_RATES[ResourceId.PreparedFoods];
     const foodConsumed = consumed[ResourceId.PreparedFoods] ?? 0;
 
     if (foodConsumed < foodNeeded * 0.5 && system.state === SystemState.Stable) {

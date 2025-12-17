@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
 import { GalaxyGeneratorService } from './galaxy-generator.service';
 import {
@@ -106,8 +106,8 @@ export class ExplorationService {
     // Consume fuel
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
-    // Calculate timing based on distance and ship speed
-    const scoutSpeed = (ship.scoutSpeed ?? 100) * (ship.speedModifier ?? 1);
+    // Calculate timing
+    const scoutSpeed = (ship.scoutSpeed ?? 2) * (ship.speedModifier ?? 1);
     const outboundTimeHours = distance / scoutSpeed;
     const explorationTimeHours = 1; // 1 hour to explore
     const returnTimeHours = distance / scoutSpeed;
@@ -144,59 +144,6 @@ export class ExplorationService {
       type: 'info',
       title: 'Scout Launched',
       message: `${ship.name} departing for exploration. ETA: ${this.formatHours(totalTimeHours)}`
-    });
-
-    return true;
-  }
-
-  /**
-   * Cancel / recall a scout mission — ship will start returning immediately.
-   */
-  cancelScoutMission(missionId: string): boolean {
-    const state = this.gameState.getState();
-    const mission = state.scoutMissions[missionId];
-    if (!mission) return false;
-
-    const ship = state.ships[mission.shipId];
-    if (!ship) return false;
-
-    const now = Date.now();
-
-    // If already returning or completed, nothing to do
-    if (mission.status === 'returning' || mission.status === 'completed') return false;
-
-    // Compute new returnTime based on current status
-    let newReturnTime = mission.returnTime;
-
-    if (mission.status === 'outbound') {
-      // Ship is mid-outbound. Time spent outbound = now - startTime
-      const timeSpent = Math.max(0, now - (mission.startTime ?? now));
-      // Time to fly back equals time spent so far (assuming same speed)
-      newReturnTime = now + timeSpent;
-    } else if (mission.status === 'exploring') {
-      // Ship is at target and exploring. Need to compute just the return travel time.
-      // Exploration time assumed 1 hour (3600000 ms)
-      const explorationMs = 1 * 60 * 60 * 1000;
-      const explorationCompleteTime = (mission.estimatedArrival ?? now) + explorationMs;
-      const originalReturnTravel = Math.max(0, (mission.returnTime ?? explorationCompleteTime) - explorationCompleteTime);
-      newReturnTime = now + originalReturnTravel;
-    }
-
-    // Update mission and ship
-    this.gameState.updateScoutMission(missionId, {
-      status: 'returning',
-      returnTime: newReturnTime
-    });
-
-    this.gameState.updateShip(mission.shipId, {
-      status: ShipStatus.Scouting,
-      arrivalTime: newReturnTime
-    });
-
-    this.gameState.addNotification({
-      type: 'info',
-      title: 'Mission Recalled',
-      message: `Mission recalled: ${ship.name} is returning to ${state.systems[mission.originSystemId]?.name ?? 'origin'}.`
     });
 
     return true;
