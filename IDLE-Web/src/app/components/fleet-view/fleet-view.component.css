@@ -153,3 +153,78 @@
   color: #666;
   font-style: italic;
 }
+
+/* Scout controls */
+.scout-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #3a3a5a;
+}
+
+.scout-controls h4 {
+  margin: 0 0 0.75rem 0;
+  color: #888;
+  font-size: 0.875rem;
+}
+
+.scout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.scout-btn mat-icon {
+  font-size: 20px;
+  height: 20px;
+  width: 20px;
+}
+
+.no-scouts {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+}
+
+.active-missions {
+  margin-top: 1rem;
+}
+
+.active-missions h5 {
+  margin: 0 0 0.5rem 0;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.mission-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.mission-ship {
+  font-weight: 500;
+  flex: 1;
+}
+
+.mission-item .mission-status {
+  color: #4fc3f7;
+  text-transform: capitalize;
+}
+
+.mission-item .mission-eta {
+  color: #888;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.cancel-btn {
+  font-size: 0.75rem;
+}
