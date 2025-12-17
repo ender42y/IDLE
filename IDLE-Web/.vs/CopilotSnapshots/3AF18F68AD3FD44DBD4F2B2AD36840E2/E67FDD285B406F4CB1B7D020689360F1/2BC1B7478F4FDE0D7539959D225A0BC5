@@ -1,6 +1,5 @@
-import { Component, inject, computed } from '@angular/core';
+﻿import { Component, inject, computed } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
-import { ExplorationService } from '../../services/exploration.service';
 import { Ship, SHIP_SIZE_DEFINITIONS, SHIP_TIER_DEFINITIONS } from '../../models/ship.model';
 
 @Component({
@@ -10,7 +9,6 @@ import { Ship, SHIP_SIZE_DEFINITIONS, SHIP_TIER_DEFINITIONS } from '../../models
 })
 export class FleetViewComponent {
   private gameState = inject(GameStateService);
-  private explorationService = inject(ExplorationService);
 
   readonly ships = this.gameState.ships;
   readonly tradeRoutes = this.gameState.tradeRoutes;
@@ -20,14 +18,6 @@ export class FleetViewComponent {
   readonly shipsList = computed(() => Object.values(this.ships()));
   readonly routesList = computed(() => Object.values(this.tradeRoutes()));
   readonly missionsList = computed(() => Object.values(this.scoutMissions()));
-
-  readonly idleScouts = computed(() =>
-    Object.values(this.ships()).filter(s => s.type === 'scout' && s.status === 'idle')
-  );
-
-  readonly activeMissions = computed(() =>
-    Object.values(this.scoutMissions()).filter(m => m.status !== 'completed')
-  );
 
   getShipSizeName(ship: Ship): string {
     return SHIP_SIZE_DEFINITIONS[ship.size]?.name ?? ship.size;
@@ -62,15 +52,5 @@ export class FleetViewComponent {
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
-  }
-
-  launchScout(): void {
-    const scouts = this.idleScouts();
-    if (scouts.length === 0) return;
-    this.explorationService.launchScoutMission(scouts[0].id);
-  }
-
-  recallMission(missionId: string): void {
-    this.explorationService.cancelScoutMission(missionId);
   }
 }

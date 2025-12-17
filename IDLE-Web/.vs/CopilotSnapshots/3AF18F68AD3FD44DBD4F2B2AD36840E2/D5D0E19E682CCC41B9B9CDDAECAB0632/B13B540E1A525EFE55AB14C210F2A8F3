@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
 import { GalaxyGeneratorService } from './galaxy-generator.service';
 import {

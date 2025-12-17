@@ -1,4 +1,4 @@
-import { Component, inject, computed, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+﻿import { Component, inject, computed, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { ExplorationService } from '../../services/exploration.service';
 import { StarSystem, getDistanceFromHome } from '../../models/star-system.model';
@@ -17,7 +17,6 @@ export class GalaxyViewComponent implements AfterViewInit {
   readonly systems = this.gameState.systems;
   readonly selectedSystem = this.gameState.selectedSystem;
   readonly ships = this.gameState.ships;
-  readonly scoutMissions = this.gameState.scoutMissions;
 
   viewOffset = { x: 0, y: 0 };
   viewScale = 20; // pixels per light year
@@ -30,10 +29,6 @@ export class GalaxyViewComponent implements AfterViewInit {
     return Object.values(this.ships()).filter(
       s => s.type === 'scout' && s.status === 'idle'
     );
-  });
-
-  readonly activeMissions = computed(() => {
-    return Object.values(this.scoutMissions()).filter(m => m.status !== 'completed');
   });
 
   ngAfterViewInit(): void {
@@ -166,22 +161,7 @@ export class GalaxyViewComponent implements AfterViewInit {
     this.explorationService.launchScoutMission(scouts[0].id);
   }
 
-  cancelMission(missionId: string): void {
-    this.explorationService.cancelScoutMission(missionId);
-  }
-
   getDistance(system: StarSystem): string {
     return getDistanceFromHome(system.coordinates).toFixed(1);
-  }
-
-  formatRemaining(ms: number): string {
-    if (ms <= 0) return '0s';
-    const totalSeconds = Math.ceil(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
   }
 }
