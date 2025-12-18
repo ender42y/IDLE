@@ -4,6 +4,7 @@ import { ProductionService } from './production.service';
 import { PopulationService } from './population.service';
 import { TradeService } from './trade.service';
 import { ExplorationService } from './exploration.service';
+import { ColonizationService } from './colonization.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,7 @@ export class GameLoopService implements OnDestroy {
   private populationService = inject(PopulationService);
   private tradeService = inject(TradeService);
   private explorationService = inject(ExplorationService);
+  private colonizationService = inject(ColonizationService);
 
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private autoSaveInterval: ReturnType<typeof setInterval> | null = null;
@@ -106,6 +108,7 @@ export class GameLoopService implements OnDestroy {
     this.populationService.processTick(deltaHours);
     this.tradeService.processTick(deltaTime);
     this.explorationService.processTick(deltaTime);
+    this.colonizationService.processTick(deltaTime);
 
     // Update tick counter
     this._tickCount.update(c => c + 1);

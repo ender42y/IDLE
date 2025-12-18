@@ -286,6 +286,13 @@ export class ExplorationService {
               surveyProgress: 100
             });
 
+            // Mark all bodies in the new system as surveyed
+            for (const bodyId of newSystem.bodyIds) {
+              this.gameState.updateBody(bodyId, {
+                surveyed: true
+              });
+            }
+
             // Set mission to returning and record discovered system
             this.gameState.updateScoutMission(mission.id, {
               status: 'returning',

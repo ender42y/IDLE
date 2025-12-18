@@ -153,3 +153,168 @@
   color: #666;
   font-style: italic;
 }
+
+/* Scout and Colonization controls */
+.scout-controls,
+.colonization-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #3a3a5a;
+}
+
+.scout-controls h4,
+.colonization-controls h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.scout-btn,
+.colonize-btn {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.no-scouts,
+.no-targets,
+.no-freighters {
+  color: #888;
+  font-style: italic;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.active-missions {
+  margin-top: 1rem;
+}
+
+.active-missions h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #4fc3f7;
+}
+
+.mission-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.mission-ship {
+  font-weight: 500;
+}
+
+.mission-item .mission-status {
+  color: #ff9800;
+}
+
+.mission-item .mission-eta {
+  color: #4fc3f7;
+  margin-left: auto;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.cancel-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Colonization Panel */
+.colonization-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.colonization-step {
+  margin-bottom: 1rem;
+}
+
+.colonization-step h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #b39ddb;
+}
+
+.selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.selection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.selection-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.selection-item.selected {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.15);
+}
+
+.selection-item .location,
+.selection-item .rarity {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.requirement-item.sufficient {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.req-name {
+  flex: 1;
+}
+
+.req-amount {
+  font-weight: 600;
+  color: #fff;
+}
+
+.req-available {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.send-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+}
