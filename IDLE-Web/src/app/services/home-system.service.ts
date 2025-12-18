@@ -270,7 +270,7 @@ export class HomeSystemService {
       status: ShipStatus.Idle,
       currentSystemId: systemId,
       scoutRange: 10,
-      scoutSpeed: 2,
+      scoutSpeed: 300,
       sensorQuality: 1,
       speedModifier: 1,
       rangeModifier: 1,

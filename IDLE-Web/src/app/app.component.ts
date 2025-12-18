@@ -46,6 +46,23 @@ export class AppComponent implements OnInit {
     this.gameState.saveGame();
   }
 
+  restartGame(): void {
+    // Stop loop while resetting
+    this.gameLoop.stop();
+
+    // Reset state (this includes a confirm in GameStateService.resetGame)
+    this.gameState.resetGame();
+
+    // Reinitialize home system and starting ships/resources
+    this.homeSystem.initializeHomeSystem();
+
+    // Save immediately
+    this.gameState.saveGame();
+
+    // Restart loop
+    this.gameLoop.start();
+  }
+
   formatCredits(amount: number): string {
     if (amount >= 1000000) {
       return (amount / 1000000).toFixed(2) + 'M';

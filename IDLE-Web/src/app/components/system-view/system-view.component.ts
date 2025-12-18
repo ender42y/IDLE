@@ -1,4 +1,4 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { ProductionService } from '../../services/production.service';
 import { ConstructionService } from '../../services/construction.service';
@@ -23,6 +23,9 @@ export class SystemViewComponent {
 
   selectedFacilityToBuild: FacilityId | null = null;
   showBuildMenu = false;
+
+  // Signal to control whether unavailable facilities are shown
+  showUnavailableFacilities = signal<boolean>(true);
 
   readonly systemBodies = computed(() => {
     const system = this.selectedSystem();
@@ -83,12 +86,73 @@ export class SystemViewComponent {
       }));
   });
 
+  // Available facilities: filter by slot types that actually have open slots, sort by tier then name
   readonly availableFacilities = computed(() => {
     const body = this.selectedBody();
     if (!body) return [];
 
-    return this.constructionService.getAvailableFacilities(body.id)
-      .filter(f => f.canBuild);
+    const all = this.constructionService.getAvailableFacilities(body.id);
+
+    const surfaceOpen = body.surveyed && body.usedSurfaceSlots < body.surfaceSlots;
+    const orbitalOpen = body.surveyed && body.usedOrbitalSlots < body.orbitalSlots;
+
+    const showUnavailable = this.showUnavailableFacilities();
+
+    const state = this.gameState.getState();
+
+    const filtered = all.filter(a => {
+      const slotType = a.facility.slotType;
+      if (slotType === 'surface' && !surfaceOpen) return false;
+      if (slotType === 'orbital' && !orbitalOpen) return false;
+      if (!showUnavailable && !a.canBuild) return false;
+      return true;
+    }).map(a => {
+      const cost = this.getCost(a.facility.id as FacilityId);
+      // Determine affordability
+      const affordable = !!cost && cost.canAfford;
+
+      // Build tooltip
+      let tooltip = '';
+      if (!a.canBuild) {
+        tooltip = a.reason ?? 'Cannot build here';
+      } else if (!cost) {
+        tooltip = 'Cost unavailable';
+      } else {
+        const missing: string[] = [];
+        if (state.credits < cost.credits) {
+          const deficit = cost.credits - state.credits;
+          missing.push(`Credits: need ${deficit}`);
+        }
+        for (const res of cost.resources) {
+          if (res.available < res.amount) {
+            const d = res.amount - res.available;
+            missing.push(`${res.name}: need ${d}`);
+          }
+        }
+        tooltip = missing.length > 0 ? `Missing - ${missing.join(', ')}` : 'Affordable';
+      }
+
+      return {
+        ...a,
+        affordable,
+        tooltip
+      };
+    });
+
+    filtered.sort((a, b) => {
+      const tierDiff = a.facility.tier - b.facility.tier;
+      if (tierDiff !== 0) return tierDiff;
+      return a.facility.name.localeCompare(b.facility.name);
+    });
+
+    return filtered;
+  });
+
+  // Selected facility cost computed to simplify template expression
+  readonly selectedFacilityCost = computed(() => {
+    const fid = this.selectedFacilityToBuild;
+    if (!fid) return null;
+    return this.getCost(fid);
   });
 
   getBodyTypeName(body: CelestialBody): string {
@@ -107,6 +171,10 @@ export class SystemViewComponent {
   toggleBuildMenu(): void {
     this.showBuildMenu = !this.showBuildMenu;
     this.selectedFacilityToBuild = null;
+  }
+
+  toggleShowUnavailableFacilities(): void {
+    this.showUnavailableFacilities.update(v => !v);
   }
 
   selectFacilityToBuild(facilityId: FacilityId): void {

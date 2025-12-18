@@ -190,6 +190,7 @@ export interface ScoutMission {
   targetCoordinates?: { x: number; y: number };
   startTime: number;
   estimatedArrival: number;
+  explorationComplete?: number;
   returnTime: number;
   status: 'outbound' | 'exploring' | 'returning' | 'completed';
   discoveredSystemId?: string;

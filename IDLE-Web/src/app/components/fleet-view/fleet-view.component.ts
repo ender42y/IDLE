@@ -52,16 +52,21 @@ export class FleetViewComponent {
   }
 
   formatTime(timestamp: number): string {
-    const remaining = timestamp - Date.now();
-    if (remaining <= 0) return 'Arriving...';
+    const remainingMs = timestamp - Date.now();
+    if (remainingMs <= 0) return 'Arriving...';
 
-    const hours = Math.floor(remaining / (1000 * 60 * 60));
-    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return `${hours}h ${minutes}m ${seconds}s`;
     }
-    return `${minutes}m`;
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
   }
 
   launchScout(): void {

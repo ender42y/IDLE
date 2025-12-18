@@ -46,24 +46,36 @@
     <div class="scout-controls">
       <h4>Exploration</h4>
       @if (idleScouts().length > 0) {
-        <button class="scout-btn" (click)="launchScout()">
-          Launch Scout ({{ idleScouts().length }} available)
-        </button>
+      <button mat-raised-button
+              color="primary"
+              class="scout-btn"
+              matTooltip="Send a scout ship to discover new star systems"
+              (click)="launchScout()">
+        <mat-icon>rocket_launch</mat-icon>
+        Launch Scout ({{ idleScouts().length }} available)
+      </button>
       } @else {
-        <p class="no-scouts">No scouts available</p>
+      <p class="no-scouts">No scouts available</p>
       }
-
-      <div class="active-missions" *ngIf="activeMissions().length > 0">
+      @if (activeMissions().length > 0) {
+      <div class="active-missions">
         <h5>Active Missions</h5>
         @for (mission of activeMissions(); track mission.id) {
-          <div class="mission-item">
-            <span class="mission-ship">{{ ships()[mission.shipId]?.name ?? 'Unknown' }}</span>
-            <span class="mission-status">{{ mission.status }}</span>
-            <span class="mission-eta">ETA: {{ formatTime(mission.returnTime) }}</span>
-            <button class="cancel-btn" (click)="recallMission(mission.id)">Recall</button>
-          </div>
+        <div class="mission-item">
+          <span class="mission-ship">{{ ships()[mission.shipId]?.name ?? 'Unknown' }}</span>
+          <span class="mission-status">{{ mission.status }}</span>
+          <span class="mission-eta">ETA: {{ formatTime(mission.returnTime) }}</span>
+          <button mat-stroked-button
+                  color="warn"
+                  class="cancel-btn"
+                  matTooltip="Recall this scout mission"
+                  (click)="recallMission(mission.id)" [disabled]="mission.status === 'returning'">
+            Recall
+          </button>
+        </div>
         }
       </div>
+      }
     </div>
   </div>
 

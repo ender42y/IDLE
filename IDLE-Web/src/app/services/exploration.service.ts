@@ -119,7 +119,7 @@ export class ExplorationService {
     const explorationComplete = outboundArrival + (explorationTimeHours * 60 * 60 * 1000);
     const returnTime = now + (totalTimeHours * 60 * 60 * 1000);
 
-    // Create mission
+    // Create mission (store explorationComplete so we wait while exploring)
     const mission: ScoutMission = {
       id: this.gameState.generateId(),
       shipId,
@@ -127,6 +127,7 @@ export class ExplorationService {
       targetCoordinates: targetCoords,
       startTime: now,
       estimatedArrival: outboundArrival,
+      explorationComplete: explorationComplete,
       returnTime,
       status: 'outbound'
     };
@@ -176,9 +177,7 @@ export class ExplorationService {
       newReturnTime = now + timeSpent;
     } else if (mission.status === 'exploring') {
       // Ship is at target and exploring. Need to compute just the return travel time.
-      // Exploration time assumed 1 hour (3600000 ms)
-      const explorationMs = 1 * 60 * 60 * 1000;
-      const explorationCompleteTime = (mission.estimatedArrival ?? now) + explorationMs;
+      const explorationCompleteTime = mission.explorationComplete ?? ((mission.estimatedArrival ?? now) + (1 * 60 * 1000));
       const originalReturnTravel = Math.max(0, (mission.returnTime ?? explorationCompleteTime) - explorationCompleteTime);
       newReturnTime = now + originalReturnTravel;
     }
@@ -273,15 +272,33 @@ export class ExplorationService {
         break;
 
       case 'exploring':
-        // Generate new system if not already done
-        if (!mission.discoveredSystemId && mission.targetCoordinates) {
-          const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates);
-          this.gameState.addSystem(newSystem);
-          this.gameState.updateScoutMission(mission.id, {
-            status: 'returning',
-            discoveredSystemId: newSystem.id
-          });
-          this.gameState.incrementStat('systemsDiscovered');
+        // Wait until explorationComplete before generating system
+        if (mission.explorationComplete && now >= mission.explorationComplete) {
+          // Generate new system if not already done
+          if (!mission.discoveredSystemId && mission.targetCoordinates) {
+            const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates);
+            this.gameState.addSystem(newSystem);
+
+            // Mark new system as surveyed since the scout just scanned it
+            this.gameState.updateSystem(newSystem.id, {
+              surveyed: true,
+              surveyedAt: Date.now(),
+              surveyProgress: 100
+            });
+
+            // Set mission to returning and record discovered system
+            this.gameState.updateScoutMission(mission.id, {
+              status: 'returning',
+              discoveredSystemId: newSystem.id
+            });
+
+            // Update ship arrival based on existing mission.returnTime
+            this.gameState.updateShip(mission.shipId, {
+              arrivalTime: mission.returnTime
+            });
+
+            this.gameState.incrementStat('systemsDiscovered');
+          }
         }
         break;
 

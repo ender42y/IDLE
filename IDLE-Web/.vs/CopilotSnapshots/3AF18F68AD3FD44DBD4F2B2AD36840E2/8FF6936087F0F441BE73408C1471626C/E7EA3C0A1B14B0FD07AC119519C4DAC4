@@ -1,0 +1,277 @@
+﻿// Ship and fleet definitions for I.D.L.E.
+
+import { ResourceId } from './resource.model';
+
+export enum ShipType {
+  Scout = 'scout',
+  Freighter = 'freighter'
+}
+
+export enum ShipSize {
+  Light = 'light',
+  Medium = 'medium',
+  Heavy = 'heavy',
+  Bulk = 'bulk'
+}
+
+export enum ShipTier {
+  Basic = 1,
+  Standard = 2,
+  Advanced = 3,
+  Elite = 4
+}
+
+export interface ShipSizeDefinition {
+  size: ShipSize;
+  name: string;
+  cargoCapacity: number; // tonnes
+  speed: number; // ly/hour
+  fuelEfficiency: number; // fuel per ly per tonne
+  requiredTradeLevel: number; // minimum trade station tier
+}
+
+export const SHIP_SIZE_DEFINITIONS: Record<ShipSize, ShipSizeDefinition> = {
+  [ShipSize.Light]: {
+    size: ShipSize.Light,
+    name: 'Light',
+    cargoCapacity: 100,
+    speed: 2.0,
+    fuelEfficiency: 0.5,
+    requiredTradeLevel: 1 // Trade Outpost
+  },
+  [ShipSize.Medium]: {
+    size: ShipSize.Medium,
+    name: 'Medium',
+    cargoCapacity: 500,
+    speed: 1.5,
+    fuelEfficiency: 0.4,
+    requiredTradeLevel: 2 // Trade Station
+  },
+  [ShipSize.Heavy]: {
+    size: ShipSize.Heavy,
+    name: 'Heavy',
+    cargoCapacity: 2000,
+    speed: 1.0,
+    fuelEfficiency: 0.3,
+    requiredTradeLevel: 3 // Trade Hub
+  },
+  [ShipSize.Bulk]: {
+    size: ShipSize.Bulk,
+    name: 'Bulk',
+    cargoCapacity: 10000,
+    speed: 0.5,
+    fuelEfficiency: 0.2, // Best fuel per tonne
+    requiredTradeLevel: 3 // Trade Hub
+  }
+};
+
+export interface ShipTierDefinition {
+  tier: ShipTier;
+  name: string;
+  conditionDecayRate: number; // % per trip
+  upgradeMultiplier: number;
+  reliability: number; // 0-1, chance of successful trip
+}
+
+export const SHIP_TIER_DEFINITIONS: Record<ShipTier, ShipTierDefinition> = {
+  [ShipTier.Basic]: {
+    tier: ShipTier.Basic,
+    name: 'Basic',
+    conditionDecayRate: 2,
+    upgradeMultiplier: 1,
+    reliability: 0.9
+  },
+  [ShipTier.Standard]: {
+    tier: ShipTier.Standard,
+    name: 'Standard',
+    conditionDecayRate: 1.5,
+    upgradeMultiplier: 1.2,
+    reliability: 0.95
+  },
+  [ShipTier.Advanced]: {
+    tier: ShipTier.Advanced,
+    name: 'Advanced',
+    conditionDecayRate: 1,
+    upgradeMultiplier: 1.5,
+    reliability: 0.98
+  },
+  [ShipTier.Elite]: {
+    tier: ShipTier.Elite,
+    name: 'Elite',
+    conditionDecayRate: 0.5,
+    upgradeMultiplier: 2,
+    reliability: 0.99
+  }
+};
+
+export enum ShipFailure {
+  MinorMechanical = 'minor_mechanical',
+  EngineFailure = 'engine_failure',
+  NavFailure = 'nav_failure',
+  CoreBreach = 'core_breach'
+}
+
+export interface BreakdownChances {
+  minCondition: number;
+  possibleFailures: ShipFailure[];
+  worstOutcome: string;
+}
+
+export const BREAKDOWN_THRESHOLDS: BreakdownChances[] = [
+  {
+    minCondition: 75,
+    possibleFailures: [ShipFailure.MinorMechanical],
+    worstOutcome: 'Reduced speed, limps home'
+  },
+  {
+    minCondition: 50,
+    possibleFailures: [ShipFailure.MinorMechanical, ShipFailure.EngineFailure],
+    worstOutcome: 'Stranded, needs rescue'
+  },
+  {
+    minCondition: 25,
+    possibleFailures: [ShipFailure.MinorMechanical, ShipFailure.EngineFailure, ShipFailure.NavFailure],
+    worstOutcome: 'Ship & cargo lost'
+  },
+  {
+    minCondition: 0,
+    possibleFailures: [ShipFailure.MinorMechanical, ShipFailure.EngineFailure, ShipFailure.NavFailure, ShipFailure.CoreBreach],
+    worstOutcome: 'Total loss'
+  }
+];
+
+export enum ShipStatus {
+  Idle = 'idle',
+  InTransit = 'in_transit',
+  Loading = 'loading',
+  Unloading = 'unloading',
+  Scouting = 'scouting',
+  Surveying = 'surveying',
+  Repairing = 'repairing',
+  Stranded = 'stranded',
+  Lost = 'lost'
+}
+
+export interface Ship {
+  id: string;
+  name: string;
+  type: ShipType;
+  size: ShipSize;
+  tier: ShipTier;
+  condition: number; // 0-100%
+  status: ShipStatus;
+  currentSystemId: string;
+
+  // Scout-specific
+  scoutRange?: number;
+  scoutSpeed?: number;
+  sensorQuality?: number;
+
+  // Freighter-specific
+  cargoCapacity?: number;
+  currentCargo?: { resourceId: ResourceId; amount: number }[];
+
+  // Mission tracking
+  missionId?: string;
+  destinationSystemId?: string;
+  departureTime?: number;
+  arrivalTime?: number;
+
+  // Upgrades
+  speedModifier: number; // multiplier
+  rangeModifier: number; // multiplier
+  efficiencyModifier: number; // multiplier
+}
+
+export interface ScoutMission {
+  id: string;
+  shipId: string;
+  originSystemId: string;
+  targetCoordinates?: { x: number; y: number };
+  startTime: number;
+  estimatedArrival: number;
+  returnTime: number;
+  status: 'outbound' | 'exploring' | 'returning' | 'completed';
+  discoveredSystemId?: string;
+}
+
+export interface TradeRouteLeg {
+  resourceId: ResourceId | null; // null = empty
+  amount: number;
+}
+
+export interface TradeRoute {
+  id: string;
+  name: string;
+  originSystemId: string;
+  destinationSystemId: string;
+  outboundCargo: TradeRouteLeg[];
+  returnCargo: TradeRouteLeg[];
+  assignedShipIds: string[];
+  active: boolean;
+}
+
+export interface TradeTrip {
+  id: string;
+  routeId: string;
+  shipId: string;
+  isOutbound: boolean;
+  cargo: { resourceId: ResourceId; amount: number }[];
+  departureTime: number;
+  arrivalTime: number;
+  fuelConsumed: number;
+}
+
+// Ship name generation themes
+export const SHIP_NAME_THEMES = {
+  nautical: [
+    'Endeavour', 'Discovery', 'Horizon', 'Navigator', 'Voyager', 'Pioneer',
+    'Mariner', 'Seafarer', 'Pathfinder', 'Trailblazer', 'Wanderer', 'Drifter'
+  ],
+  mythology: [
+    'Phoenix', 'Pegasus', 'Artemis', 'Apollo', 'Hermes', 'Atlas',
+    'Prometheus', 'Icarus', 'Odyssey', 'Titan', 'Valkyrie', 'Odin'
+  ],
+  corporate: [
+    'Enterprise', 'Venture', 'Commerce', 'Prosperity', 'Fortune', 'Capital',
+    'Trade Wind', 'Merchant', 'Profit Margin', 'Market Force'
+  ],
+  optimistic: [
+    'Hope', 'Unity', 'Harmony', 'Progress', 'Future', 'Dream',
+    'Aspiration', 'Vision', 'Promise', 'Dawn', 'New Horizon'
+  ],
+  humorous: [
+    'Budget Cuts', 'Barely Working', 'Good Enough', 'Plan B', 'Last Resort',
+    'Flying Brick', 'Insurance Claim', 'Duct Tape Special'
+  ],
+  frontier: [
+    'Frontier', 'Outpost', 'Rustbucket', 'Workhorse', 'Old Reliable',
+    'Roughneck', 'Hauler', 'Mudskipper', 'Junker', 'Salvage Queen'
+  ]
+};
+
+export function generateShipName(theme?: keyof typeof SHIP_NAME_THEMES): string {
+  const themes = Object.keys(SHIP_NAME_THEMES) as (keyof typeof SHIP_NAME_THEMES)[];
+  const selectedTheme = theme || themes[Math.floor(Math.random() * themes.length)];
+  const names = SHIP_NAME_THEMES[selectedTheme];
+  return names[Math.floor(Math.random() * names.length)];
+}
+
+export function calculateFuelCost(
+  distance: number,
+  cargoTonnes: number,
+  ship: Ship
+): number {
+  const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
+  const baseFuel = distance * cargoTonnes * sizeDefinition.fuelEfficiency;
+  return baseFuel / ship.efficiencyModifier;
+}
+
+export function calculateTravelTime(
+  distance: number,
+  ship: Ship
+): number {
+  const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
+  const effectiveSpeed = sizeDefinition.speed * ship.speedModifier;
+  return distance / effectiveSpeed; // hours
+}

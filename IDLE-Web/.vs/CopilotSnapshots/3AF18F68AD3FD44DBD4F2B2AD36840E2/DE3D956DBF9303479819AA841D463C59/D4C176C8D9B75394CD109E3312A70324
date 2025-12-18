@@ -1,0 +1,144 @@
+﻿<div class="fleet-view">
+  <!-- Ships Panel -->
+  <div class="panel ships-panel">
+    <h3>Fleet</h3>
+    <div class="ships-list">
+      @for (ship of shipsList(); track ship.id) {
+        <div class="ship-card">
+          <div class="ship-header">
+            <span class="ship-name">{{ ship.name }}</span>
+            <span class="ship-type">{{ ship.type === 'scout' ? '🔭' : '📦' }}</span>
+          </div>
+          <div class="ship-details">
+            <div class="detail-row">
+              <span class="label">Class:</span>
+              <span>{{ getShipSizeName(ship) }} {{ getShipTierName(ship) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Location:</span>
+              <span>{{ getSystemName(ship.currentSystemId) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Status:</span>
+              <span [class]="getStatusClass(ship.status)">{{ ship.status }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Condition:</span>
+              <div class="condition-bar">
+                <div class="condition-fill" [style.width.%]="ship.condition"></div>
+              </div>
+              <span>{{ ship.condition }}%</span>
+            </div>
+          </div>
+          @if (ship.arrivalTime && ship.status !== 'idle') {
+            <div class="ship-eta">
+              ETA: {{ formatTime(ship.arrivalTime) }}
+            </div>
+          }
+        </div>
+      }
+      @empty {
+        <div class="empty-message">No ships in fleet</div>
+      }
+    </div>
+
+    <!-- Exploration controls moved here -->
+    <div class="scout-controls">
+      <h4>Exploration</h4>
+      @if (idleScouts().length > 0) {
+      <button mat-raised-button
+              color="primary"
+              class="scout-btn"
+              matTooltip="Send a scout ship to discover new star systems"
+              (click)="launchScout()">
+        <mat-icon>rocket_launch</mat-icon>
+        Launch Scout ({{ idleScouts().length }} available)
+      </button>
+      } @else {
+      <p class="no-scouts">No scouts available</p>
+      }
+      @if (activeMissions().length > 0) {
+      <div class="active-missions">
+        <h5>Active Missions</h5>
+        @for (mission of activeMissions(); track mission.id) {
+        <div class="mission-item">
+          <span class="mission-ship">{{ ships()[mission.shipId]?.name ?? 'Unknown' }}</span>
+          <span class="mission-status">{{ mission.status }}</span>
+          <span class="mission-eta">ETA: {{ formatTime(mission.returnTime) }}</span>
+          <button mat-stroked-button
+                  color="warn"
+                  class="cancel-btn"
+                  matTooltip="Recall this scout mission"
+                  (click)="recallMission(mission.id)">
+            Recall
+          </button>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Trade Routes Panel -->
+  <div class="panel routes-panel">
+    <h3>Trade Routes</h3>
+    <div class="routes-list">
+      @for (route of routesList(); track route.id) {
+        <div class="route-card">
+          <div class="route-header">
+            <span class="route-name">{{ route.name }}</span>
+            <span class="route-status" [class.active]="route.active">
+              {{ route.active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <div class="route-path">
+            {{ getSystemName(route.originSystemId) }}
+            <span class="arrow">↔</span>
+            {{ getSystemName(route.destinationSystemId) }}
+          </div>
+          <div class="route-ships">
+            {{ route.assignedShipIds.length }} ship(s) assigned
+          </div>
+        </div>
+      }
+      @empty {
+        <div class="empty-message">No trade routes established</div>
+      }
+    </div>
+  </div>
+
+  <!-- Missions Panel -->
+  <div class="panel missions-panel">
+    <h3>Active Missions</h3>
+    <div class="missions-list">
+      @for (mission of missionsList(); track mission.id) {
+        <div class="mission-card">
+          <div class="mission-header">
+            <span class="mission-type">🔭 Scout Mission</span>
+            <span class="mission-status">{{ mission.status }}</span>
+          </div>
+          <div class="mission-details">
+            <div class="detail-row">
+              <span class="label">Origin:</span>
+              <span>{{ getSystemName(mission.originSystemId) }}</span>
+            </div>
+            @if (mission.status === 'returning' || mission.status === 'completed') {
+              <div class="detail-row">
+                <span class="label">Discovery:</span>
+                <span>{{ mission.discoveredSystemId ? getSystemName(mission.discoveredSystemId) : 'None' }}</span>
+              </div>
+            }
+            @if (mission.returnTime && mission.status !== 'completed') {
+              <div class="mission-eta">
+                Returns: {{ formatTime(mission.returnTime) }}
+              </div>
+            }
+          </div>
+        </div>
+      }
+      @empty {
+        <div class="empty-message">No active missions</div>
+      }
+    </div>
+  </div>
+</div>

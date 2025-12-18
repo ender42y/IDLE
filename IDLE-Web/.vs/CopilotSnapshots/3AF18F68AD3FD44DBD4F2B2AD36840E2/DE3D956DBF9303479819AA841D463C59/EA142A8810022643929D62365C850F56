@@ -1,0 +1,97 @@
+﻿<div class="game-container">
+  <!-- Header Bar -->
+  <header class="header">
+    <div class="header-left">
+      <h1 class="game-title">I.D.L.E.</h1>
+      <span class="subtitle">Interstellar Development & Logistics Enterprise</span>
+    </div>
+    <div class="header-center">
+      <nav class="nav-tabs">
+        <button
+          class="nav-tab"
+          [class.active]="currentView === 'galaxy'"
+          (click)="switchView('galaxy')">
+          Galaxy
+        </button>
+        <button
+          class="nav-tab"
+          [class.active]="currentView === 'system'"
+          (click)="switchView('system')">
+          System
+        </button>
+        <button
+          class="nav-tab"
+          [class.active]="currentView === 'fleet'"
+          (click)="switchView('fleet')">
+          Fleet
+        </button>
+        <button
+          class="nav-tab"
+          [class.active]="currentView === 'market'"
+          (click)="switchView('market')">
+          Market
+        </button>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div class="credits-display">
+        <span class="credits-icon">&#8373;</span>
+        <span class="credits-amount">{{ formatCredits(credits()) }}</span>
+      </div>
+      <div class="header-controls">
+        <button class="control-btn" (click)="togglePause()" [title]="isRunning() ? 'Pause' : 'Resume'">
+          {{ isRunning() ? '⏸' : '▶' }}
+        </button>
+        <button class="control-btn" (click)="saveGame()" title="Save Game">
+          💾
+        </button>
+        <button class="control-btn" (click)="restartGame()" title="Restart Game">
+          🔄
+        </button>
+        <span class="tps-display" title="Ticks per second">{{ ticksPerSecond() }} TPS</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    @switch (currentView) {
+      @case ('galaxy') {
+        <app-galaxy-view></app-galaxy-view>
+      }
+      @case ('system') {
+        <app-system-view></app-system-view>
+      }
+      @case ('fleet') {
+        <app-fleet-view></app-fleet-view>
+      }
+      @case ('market') {
+        <app-market-view></app-market-view>
+      }
+    }
+  </main>
+
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    @if (selectedSystem(); as system) {
+      <div class="status-item">
+        <span class="status-label">System:</span>
+        <span class="status-value">{{ system.name }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Population:</span>
+        <span class="status-value">{{ system.totalPopulation | number }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">State:</span>
+        <span class="status-value status-{{ system.state }}">{{ system.state }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">SoL:</span>
+        <span class="status-value">{{ system.standardOfLiving }}%</span>
+      </div>
+    }
+  </footer>
+</div>
+
+<router-outlet />
