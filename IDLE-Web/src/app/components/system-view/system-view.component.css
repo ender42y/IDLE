@@ -246,15 +246,28 @@
 
 .facility-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
+  gap: 0.25rem;
+}
+
+.facility-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .facility-name {
   font-weight: 500;
+}
+
+.facility-rate {
+  font-size: 0.75rem;
+  color: #4fc3f7;
+  padding-left: 0.25rem;
 }
 
 .facility-status {
@@ -303,14 +316,27 @@
 
 .build-option {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
+  gap: 0.25rem;
+}
+
+.option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.option-rate {
+  font-size: 0.7rem;
+  color: #4fc3f7;
+  padding-left: 1.75rem;
 }
 
 .build-option:hover {

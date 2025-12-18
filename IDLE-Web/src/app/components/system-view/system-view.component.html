@@ -106,8 +106,11 @@
             <div class="facilities-list">
               <div *ngIf="bodyFacilities().length > 0; else noFacilities">
                 <div *ngFor="let facility of bodyFacilities()" class="facility-item">
-                  <span class="facility-name">{{ facility.definition.name }}</span>
-                  <span class="facility-status" [class.operational]="facility.operational">{{ facility.operational ? 'Operational' : 'Offline' }}</span>
+                  <div class="facility-header">
+                    <span class="facility-name">{{ facility.definition.name }}</span>
+                    <span class="facility-status" [class.operational]="facility.operational">{{ facility.operational ? 'Operational' : 'Offline' }}</span>
+                  </div>
+                  <div *ngIf="facility.rateInfo" class="facility-rate">{{ facility.rateInfo }}</div>
                 </div>
               </div>
               <ng-template #noFacilities>
@@ -136,9 +139,12 @@
                       [class.unavailable]="!option.canBuild"
                       (click)="selectFacilityToBuild(option.facility.id)"
                       [attr.title]="option.tooltip">
-                      <span class="option-icon">{{ option.facility.slotType === 'orbital' ? '🛰️' : '🏗️' }}</span>
-                      <span class="option-name">{{ option.facility.name }}</span>
-                      <span class="option-tier">Tier {{ option.facility.tier }}</span>
+                      <div class="option-header">
+                        <span class="option-icon">{{ option.facility.slotType === 'orbital' ? '🛰️' : '🏗️' }}</span>
+                        <span class="option-name">{{ option.facility.name }}</span>
+                        <span class="option-tier">Tier {{ option.facility.tier }}</span>
+                      </div>
+                      <div *ngIf="option.rateInfo" class="option-rate">{{ option.rateInfo }}</div>
                       <span *ngIf="!option.canBuild && showUnavailableFacilities()" class="option-reason">({{ option.reason }})</span>
                     </div>
                   </div>
