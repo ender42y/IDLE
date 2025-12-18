@@ -1,12 +1,12 @@
 <div class="system-view">
-  <ng-container *ngIf="selectedSystem() as system; else noSystem">
+  @if (selectedSystem(); as system) {
     <!-- System Overview -->
     <div class="system-header">
       <h2>{{ system.name }}</h2>
       <div class="system-stats">
         <span class="stat">
           <span class="stat-label">Rarity:</span>
-          <span class="stat-value" [ngClass]="'rarity-' + system.rarity">{{ system.rarity }}</span>
+          <span class="stat-value rarity-{{ system.rarity }}">{{ system.rarity }}</span>
         </span>
         <span class="stat">
           <span class="stat-label">Bodies:</span>
@@ -28,22 +28,21 @@
       <div class="panel bodies-panel">
         <h3 class="panel-title">Celestial Bodies</h3>
         <div class="bodies-list">
-          <div *ngFor="let body of systemBodies()" class="body-wrapper">
+          @for (body of systemBodies(); track body.id) {
             <div
               class="body-item"
               [class.selected]="selectedBody()?.id === body.id"
               [class.moon]="!!body.parentBodyId"
               (click)="selectBody(body)">
               <div class="body-icon" [attr.data-type]="body.type">
-                <ng-container [ngSwitch]="body.type">
-                  <span *ngSwitchCase="'star'">☀</span>
-                  <span *ngSwitchCase="'gas_giant'">🪐</span>
-                  <span *ngSwitchCase="'terraformable_planet'">🌍</span>
-                  <span *ngSwitchCase="'terrestrial_planet'">🌑</span>
-                  <span *ngSwitchCase="'icy_moon'">❄</span>
-                  <span *ngSwitchCase="'moon'">🌙</span>
-                  <span *ngSwitchDefault>◦</span>
-                </ng-container>
+                @switch (body.type) {
+                  @case ('star') { ☀ }
+                  @case ('gas_giant') { 🪐 }
+                  @case ('terraformable_planet') { 🌍 }
+                  @case ('terrestrial_planet') { 🌑 }
+                  @case ('icy_moon') { ❄ }
+                  @case ('moon') { 🌙 }
+                }
               </div>
               <div class="body-info">
                 <span class="body-name">{{ body.name }}</span>
@@ -54,8 +53,7 @@
                 <span class="slot-count" title="Orbital slots">🛰 {{ body.usedOrbitalSlots }}/{{ body.orbitalSlots }}</span>
               </div>
             </div>
-          </div>
-          <div *ngIf="systemBodies().length === 0" class="empty-message">No celestial bodies</div>
+          }
         </div>
       </div>
 
@@ -63,129 +61,148 @@
       <div class="panel resources-panel">
         <h3 class="panel-title">System Resources</h3>
         <div class="resources-list">
-          <div *ngIf="systemResources().length > 0; else noResources">
-            <div *ngFor="let resource of systemResources()" class="resource-item">
+          @for (resource of systemResources(); track resource.resourceId) {
+            <div class="resource-item">
               <span class="resource-name">{{ resource.name }}</span>
               <span class="resource-amount">{{ formatNumber(resource.amount) }}</span>
               <span class="resource-rate" [class.positive]="resource.rate > 0" [class.negative]="resource.rate < 0">
                 {{ formatRate(resource.rate) }}
               </span>
             </div>
-          </div>
-          <ng-template #noResources>
+          }
+          @empty {
             <div class="empty-message">No resources in storage</div>
-          </ng-template>
+          }
         </div>
       </div>
 
       <!-- Body Details Panel -->
       <div class="panel details-panel">
-        <ng-container *ngIf="selectedBody() as body; else noSelection">
+        @if (selectedBody(); as body) {
           <h3 class="panel-title">{{ body.name }}</h3>
 
           <!-- Body Features -->
-          <div *ngIf="body.features.length > 0" class="section">
-            <h4>Features</h4>
-            <div class="features-list">
-              <span *ngFor="let feature of body.features" class="feature-tag">{{ getFeatureName(feature) }}</span>
+          @if (body.features.length > 0) {
+            <div class="section">
+              <h4>Features</h4>
+              <div class="features-list">
+                @for (feature of body.features; track feature) {
+                  <span class="feature-tag">{{ getFeatureName(feature) }}</span>
+                }
+              </div>
             </div>
-          </div>
+          }
 
           <!-- Population -->
-          <div *ngIf="body.populationCeiling > 0" class="section">
-            <h4>Population</h4>
-            <div class="population-bar">
-              <div class="population-fill" [style.width.%]="(body.population / body.populationCeiling) * 100"></div>
-              <span class="population-text">{{ body.population | number }} / {{ body.populationCeiling | number }}</span>
+          @if (body.populationCeiling > 0) {
+            <div class="section">
+              <h4>Population</h4>
+              <div class="population-bar">
+                <div
+                  class="population-fill"
+                  [style.width.%]="(body.population / body.populationCeiling) * 100">
+                </div>
+                <span class="population-text">
+                  {{ body.population | number }} / {{ body.populationCeiling | number }}
+                </span>
+              </div>
             </div>
-          </div>
+          }
 
           <!-- Facilities -->
           <div class="section">
             <h4>Facilities</h4>
             <div class="facilities-list">
-              <div *ngIf="bodyFacilities().length > 0; else noFacilities">
-                <div *ngFor="let facility of bodyFacilities()" class="facility-item">
-                  <div class="facility-header">
-                    <span class="facility-name">{{ facility.definition.name }}</span>
-                    <span class="facility-status" [class.operational]="facility.operational">{{ facility.operational ? 'Operational' : 'Offline' }}</span>
-                  </div>
-                  <div *ngIf="facility.rateInfo" class="facility-rate">{{ facility.rateInfo }}</div>
+              @for (facility of bodyFacilities(); track facility.id) {
+                <div class="facility-item">
+                  <span class="facility-name">{{ facility.definition.name }}</span>
+                  <span class="facility-status" [class.operational]="facility.operational">
+                    {{ facility.operational ? 'Operational' : 'Offline' }}
+                  </span>
                 </div>
-              </div>
-              <ng-template #noFacilities>
+              }
+              @empty {
                 <div class="empty-message">No facilities built</div>
-              </ng-template>
+              }
             </div>
 
             <!-- Build Button -->
-            <div *ngIf="body.surveyed && (body.usedSurfaceSlots < body.surfaceSlots || body.usedOrbitalSlots < body.orbitalSlots); else noSlots">
-              <button class="build-btn" (click)="toggleBuildMenu()">{{ showBuildMenu ? 'Cancel' : '+ Build Facility' }}</button>
+            @if (body.surveyed && (body.usedSurfaceSlots < body.surfaceSlots || body.usedOrbitalSlots < body.orbitalSlots)) {
+              <button class="build-btn" (click)="toggleBuildMenu()">
+                {{ showBuildMenu ? 'Cancel' : '+ Build Facility' }}
+              </button>
 
               <!-- Build Menu -->
-              <div *ngIf="showBuildMenu" class="build-menu">
-                <div class="build-controls">
-                  <label>
-                    <input type="checkbox" (change)="toggleShowUnavailableFacilities()" [checked]="showUnavailableFacilities()" />
-                    Show unavailable
-                  </label>
-                </div>
+              @if (showBuildMenu) {
+                <div class="build-menu">
+                  <div class="build-controls">
+                    <label>
+                      <input type="checkbox" (change)="toggleShowUnavailableFacilities()" [checked]="showUnavailableFacilities()" />
+                      Show unavailable
+                    </label>
+                  </div>
 
-                <div class="build-options">
-                  <div *ngIf="availableFacilities().length > 0; else noAvailable">
-                    <div *ngFor="let option of availableFacilities()" class="build-option"
-                      [class.selected]="selectedFacilityToBuild === option.facility.id"
-                      [class.unaffordable]="!option.affordable"
-                      [class.unavailable]="!option.canBuild"
-                      (click)="selectFacilityToBuild(option.facility.id)"
-                      [attr.title]="option.tooltip">
-                      <div class="option-header">
+                  <div class="build-options">
+                    @for (option of availableFacilities(); track option.facility.id) {
+                      <div
+                        class="build-option"
+                        [class.selected]="selectedFacilityToBuild === option.facility.id"
+                        [class.unaffordable]="!option.affordable"
+                        [class.unavailable]="!option.canBuild"
+                        (click)="selectFacilityToBuild(option.facility.id)"
+                        [attr.title]="option.tooltip">
                         <span class="option-icon">{{ option.facility.slotType === 'orbital' ? '🛰️' : '🏗️' }}</span>
                         <span class="option-name">{{ option.facility.name }}</span>
                         <span class="option-tier">Tier {{ option.facility.tier }}</span>
+                        @if (!option.canBuild && showUnavailableFacilities()) {
+                          <span class="option-reason">({{ option.reason }})</span>
+                        }
                       </div>
-                      <div *ngIf="option.rateInfo" class="option-rate">{{ option.rateInfo }}</div>
-                      <span *ngIf="!option.canBuild && showUnavailableFacilities()" class="option-reason">({{ option.reason }})</span>
+                    }
+                    @empty {
+                      <div class="empty-message">No facilities available to build</div>
+                    }
+                  </div>
+
+                  @if (selectedFacilityCost(); as cost) {
+                    <div class="build-cost">
+                      <h5>Construction Cost</h5>
+                      <div class="cost-item">
+                        <span>Credits:</span>
+                        <span [class.affordable]="cost.canAfford">{{ cost.credits | number }}</span>
+                      </div>
+                      @for (res of cost.resources; track res.resourceId) {
+                        <div class="cost-item">
+                          <span>{{ res.name }}:</span>
+                          <span [class.affordable]="res.available >= res.amount" [class.insufficient]="res.available < res.amount">
+                            {{ res.amount | number }} (have {{ res.available | number }})
+                          </span>
+                        </div>
+                      }
+                      <button
+                        class="confirm-build-btn"
+                        [disabled]="!cost.canAfford"
+                        (click)="buildFacility()">
+                        Build
+                      </button>
                     </div>
-                  </div>
-                  <ng-template #noAvailable>
-                    <div class="empty-message">No facilities available to build</div>
-                  </ng-template>
+                  }
                 </div>
-
-                <div *ngIf="selectedFacilityCost() as cost" class="build-cost">
-                  <h5>Construction Cost</h5>
-                  <div class="cost-item">
-                    <span>Credits:</span>
-                    <span [class.affordable]="cost.canAfford">{{ cost.credits | number }}</span>
-                  </div>
-                  <div *ngFor="let res of cost.resources" class="cost-item">
-                    <span>{{ res.name }}:</span>
-                    <span [class.affordable]="res.available >= res.amount" [class.insufficient]="res.available < res.amount">
-                      {{ res.amount | number }} (have {{ res.available | number }})
-                    </span>
-                  </div>
-                  <button class="confirm-build-btn" [disabled]="!cost.canAfford" (click)="buildFacility()">Build</button>
-                </div>
-
-              </div>
-            </div>
-            <ng-template #noSlots>
+              }
+            } else {
               <div class="no-slots">No buildable slots available</div>
-            </ng-template>
-
+            }
           </div>
-        </ng-container>
-
-        <ng-template #noSelection>
-          <div class="no-selection"><p>Select a celestial body to view details</p></div>
-        </ng-template>
-
+        } @else {
+          <div class="no-selection">
+            <p>Select a celestial body to view details</p>
+          </div>
+        }
       </div>
     </div>
-  </ng-container>
-
-  <ng-template #noSystem>
-    <div class="no-system"><p>No system selected</p></div>
-  </ng-template>
+  } @else {
+    <div class="no-system">
+      <p>No system selected</p>
+    </div>
+  }
 </div>
