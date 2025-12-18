@@ -1,4 +1,4 @@
-<div class="system-view">
+﻿<div class="system-view">
   <ng-container *ngIf="selectedSystem() as system; else noSystem">
     <!-- System Overview -->
     <div class="system-header">

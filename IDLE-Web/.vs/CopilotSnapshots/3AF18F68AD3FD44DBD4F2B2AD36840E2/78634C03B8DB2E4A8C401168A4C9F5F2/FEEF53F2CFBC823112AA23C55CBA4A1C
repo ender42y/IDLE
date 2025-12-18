@@ -1,0 +1,208 @@
+﻿<div class="system-view">
+  @if (selectedSystem(); as system) {
+    <!-- System Overview -->
+    <div class="system-header">
+      <h2>{{ system.name }}</h2>
+      <div class="system-stats">
+        <span class="stat">
+          <span class="stat-label">Rarity:</span>
+          <span class="stat-value rarity-{{ system.rarity }}">{{ system.rarity }}</span>
+        </span>
+        <span class="stat">
+          <span class="stat-label">Bodies:</span>
+          <span class="stat-value">{{ system.bodyIds.length }}</span>
+        </span>
+        <span class="stat">
+          <span class="stat-label">Tech:</span>
+          <span class="stat-value">Lvl {{ system.techLevel }}</span>
+        </span>
+        <span class="stat">
+          <span class="stat-label">Security:</span>
+          <span class="stat-value">Lvl {{ system.securityLevel }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="system-content">
+      <!-- Bodies Panel -->
+      <div class="panel bodies-panel">
+        <h3 class="panel-title">Celestial Bodies</h3>
+        <div class="bodies-list">
+          @for (body of systemBodies(); track body.id) {
+            <div
+              class="body-item"
+              [class.selected]="selectedBody()?.id === body.id"
+              [class.moon]="!!body.parentBodyId"
+              (click)="selectBody(body)">
+              <div class="body-icon" [attr.data-type]="body.type">
+                @switch (body.type) {
+                  @case ('star') { ☀ }
+                  @case ('gas_giant') { 🪐 }
+                  @case ('terraformable_planet') { 🌍 }
+                  @case ('terrestrial_planet') { 🌑 }
+                  @case ('icy_moon') { ❄ }
+                  @case ('moon') { 🌙 }
+                }
+              </div>
+              <div class="body-info">
+                <span class="body-name">{{ body.name }}</span>
+                <span class="body-type">{{ getBodyTypeName(body) }}</span>
+              </div>
+              <div class="body-slots">
+                <span class="slot-count" title="Surface slots">🏗 {{ body.usedSurfaceSlots }}/{{ body.surfaceSlots }}</span>
+                <span class="slot-count" title="Orbital slots">🛰 {{ body.usedOrbitalSlots }}/{{ body.orbitalSlots }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Resources Panel -->
+      <div class="panel resources-panel">
+        <h3 class="panel-title">System Resources</h3>
+        <div class="resources-list">
+          @for (resource of systemResources(); track resource.resourceId) {
+            <div class="resource-item">
+              <span class="resource-name">{{ resource.name }}</span>
+              <span class="resource-amount">{{ formatNumber(resource.amount) }}</span>
+              <span class="resource-rate" [class.positive]="resource.rate > 0" [class.negative]="resource.rate < 0">
+                {{ formatRate(resource.rate) }}
+              </span>
+            </div>
+          }
+          @empty {
+            <div class="empty-message">No resources in storage</div>
+          }
+        </div>
+      </div>
+
+      <!-- Body Details Panel -->
+      <div class="panel details-panel">
+        @if (selectedBody(); as body) {
+          <h3 class="panel-title">{{ body.name }}</h3>
+
+          <!-- Body Features -->
+          @if (body.features.length > 0) {
+            <div class="section">
+              <h4>Features</h4>
+              <div class="features-list">
+                @for (feature of body.features; track feature) {
+                  <span class="feature-tag">{{ getFeatureName(feature) }}</span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Population -->
+          @if (body.populationCeiling > 0) {
+            <div class="section">
+              <h4>Population</h4>
+              <div class="population-bar">
+                <div
+                  class="population-fill"
+                  [style.width.%]="(body.population / body.populationCeiling) * 100">
+                </div>
+                <span class="population-text">
+                  {{ body.population | number }} / {{ body.populationCeiling | number }}
+                </span>
+              </div>
+            </div>
+          }
+
+          <!-- Facilities -->
+          <div class="section">
+            <h4>Facilities</h4>
+            <div class="facilities-list">
+              @for (facility of bodyFacilities(); track facility.id) {
+                <div class="facility-item">
+                  <span class="facility-name">{{ facility.definition.name }}</span>
+                  <span class="facility-status" [class.operational]="facility.operational">
+                    {{ facility.operational ? 'Operational' : 'Offline' }}
+                  </span>
+                </div>
+              }
+              @empty {
+                <div class="empty-message">No facilities built</div>
+              }
+            </div>
+
+            <!-- Build Button -->
+            @if (body.surveyed && (body.usedSurfaceSlots < body.surfaceSlots || body.usedOrbitalSlots < body.orbitalSlots)) {
+              <button class="build-btn" (click)="toggleBuildMenu()">
+                {{ showBuildMenu ? 'Cancel' : '+ Build Facility' }}
+              </button>
+
+              <!-- Build Menu -->
+              @if (showBuildMenu) {
+                <div class="build-menu">
+                  <div class="build-controls">
+                    <label>
+                      <input type="checkbox" (change)="toggleShowUnavailableFacilities()" [checked]="showUnavailableFacilities()" />
+                      Show unavailable
+                    </label>
+                  </div>
+
+                  <div class="build-options">
+                    @for (option of availableFacilities(); track option.facility.id) {
+                      <div
+                        class="build-option"
+                        [class.selected]="selectedFacilityToBuild === option.facility.id"
+                        [class.unaffordable]="!option.affordable"
+                        [class.unavailable]="!option.canBuild"
+                        (click)="selectFacilityToBuild(option.facility.id)"
+                        [attr.title]="option.tooltip">
+                        <span class="option-icon">{{ option.facility.slotType === 'orbital' ? '🛰️' : '🏗️' }}</span>
+                        <span class="option-name">{{ option.facility.name }}</span>
+                        <span class="option-tier">Tier {{ option.facility.tier }}</span>
+                        @if (!option.canBuild && showUnavailableFacilities()) {
+                          <span class="option-reason">({{ option.reason }})</span>
+                        }
+                      </div>
+                    }
+                    @empty {
+                      <div class="empty-message">No facilities available to build</div>
+                    }
+                  </div>
+
+                  @if (selectedFacilityCost(); as cost) {
+                    <div class="build-cost">
+                      <h5>Construction Cost</h5>
+                      <div class="cost-item">
+                        <span>Credits:</span>
+                        <span [class.affordable]="cost.canAfford">{{ cost.credits | number }}</span>
+                      </div>
+                      @for (res of cost.resources; track res.resourceId) {
+                        <div class="cost-item">
+                          <span>{{ res.name }}:</span>
+                          <span [class.affordable]="res.available >= res.amount" [class.insufficient]="res.available < res.amount">
+                            {{ res.amount | number }} (have {{ res.available | number }})
+                          </span>
+                        </div>
+                      }
+                      <button
+                        class="confirm-build-btn"
+                        [disabled]="!cost.canAfford"
+                        (click)="buildFacility()">
+                        Build
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+            } else {
+              <div class="no-slots">No buildable slots available</div>
+            }
+          </div>
+        } }@else {
+          <div class="no-selection">
+            <p>Select a celestial body to view details</p>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="no-system">
+      <p>No system selected</p>
+    </div>
+  }
+</div>
