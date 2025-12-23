@@ -1,5 +1,5 @@
-<div class="system-view">
-  @if (selectedSystem(); as system){
+﻿<div class="system-view">
+  @if (selectedSystem(); as system) {
     <!-- System Overview -->
     <div class="system-header">
       <h2>{{ system.name }}</h2>
@@ -60,30 +60,18 @@
       <!-- Resources Panel -->
       <div class="panel resources-panel">
         <h3 class="panel-title">System Resources</h3>
-        <div class="resources-table">
-          <div class="resources-header">
-            <span class="col name">Resource</span>
-            <span class="col amount">Amount</span>
-            <span class="col rate">Net Rate</span>
-            <span class="col consumption">Consumption</span>
-          </div>
-          <div class="resources-list scrollable">
-            @for (resource of systemResources(); track resource.resourceId) {
-              <div class="resource-item">
-                <span class="col name">{{ resource.name }}</span>
-                <span class="col amount">{{ formatNumber(resource.amount) }}</span>
-                <span class="col rate" [class.positive]="resource.rate > 0" [class.negative]="resource.rate < 0">
-                  {{ formatRate(resource.rate) }}
-                </span>
-                <span class="col consumption" [class.overdraw]="resource.overdraw" [class.positive]="resource.consumption > 0 && !resource.overdraw" [class.negative]="resource.consumption < 0">
-                  {{ resource.consumption ? formatRate(-resource.consumption) : '—' }}
-                </span>
-              </div>
-            }
-            @empty {
-              <div class="empty-message">No resources in storage</div>
-            }
-          </div>
+        <div class="resources-list">
+          @for (resource of systemResources(); track resource.resourceId) {
+            <div class="resource-item">
+              <span class="resource-name">{{ resource.name }}</span>
+              <span class="resource-amount">{{ formatNumber(resource.amount) }}</span>
+              <span class="resource-rate" [class.positive]="resource.rate > 0" [class.negative]="resource.rate < 0">
+                {{ formatRate(resource.rate) }}
+              </span>
+            </div>
+          } @empty {
+            <div class="empty-message">No resources in storage</div>
+          }
         </div>
       </div>
 
@@ -131,8 +119,7 @@
                     {{ facility.operational ? 'Operational' : 'Offline' }}
                   </span>
                 </div>
-              }
-              @empty {
+              } @empty {
                 <div class="empty-message">No facilities built</div>
               }
             </div>
@@ -157,7 +144,7 @@
                     @for (option of availableFacilities(); track option.facility.id) {
                       <div
                         class="build-option"
-                        [class.selected]="selectedFacilityToBuild() === option.facility.id"
+                        [class.selected]="selectedFacilityToBuild === option.facility.id"
                         [class.unaffordable]="!option.affordable"
                         [class.unavailable]="!option.canBuild"
                         (click)="selectFacilityToBuild(option.facility.id)"
@@ -169,13 +156,12 @@
                           <span class="option-reason">({{ option.reason }})</span>
                         }
                       </div>
-                    }
-                    @empty {
+                    } @empty {
                       <div class="empty-message">No facilities available to build</div>
                     }
                   </div>
 
-                    @if (selectedFacilityCost(); as cost) {
+                  @if (selectedFacilityCost(); as cost) {
                     <div class="build-cost">
                       <h5>Construction Cost</h5>
                       <div class="cost-item">
@@ -200,7 +186,7 @@
                   }
                 </div>
               }
-            } @else {
+            } else {
               <div class="no-slots">No buildable slots available</div>
             }
           </div>
@@ -210,7 +196,7 @@
           </div>
         }
       </div>
-    </div>
+    </div>}
   } @else {
     <div class="no-system">
       <p>No system selected</p>

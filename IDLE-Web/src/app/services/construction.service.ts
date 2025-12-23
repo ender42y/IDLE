@@ -193,14 +193,35 @@ export class ConstructionService {
       return false;
     }
 
-    // Spend credits
+    // Spend credits first
     if (!this.gameState.spendCredits(cost.credits)) {
+      this.gameState.addNotification({
+        type: 'warning',
+        title: 'Insufficient Credits',
+        message: 'Not enough credits to begin construction.'
+      });
       return false;
     }
 
-    // Spend resources
+    // Spend resources transactionally - if any removal fails, rollback credits and any removed resources
+    const removed: { resourceId: ResourceId; amount: number }[] = [];
     for (const resource of cost.resources) {
-      this.gameState.removeResourceFromSystem(system.id, resource.resourceId, resource.amount);
+      const ok = this.gameState.removeResourceFromSystem(system.id, resource.resourceId, resource.amount);
+      if (!ok) {
+        // rollback previously removed resources
+        for (const r of removed) {
+          this.gameState.addResourceToSystem(system.id, r.resourceId, r.amount);
+        }
+        // refund credits
+        this.gameState.addCredits(cost.credits);
+        this.gameState.addNotification({
+          type: 'warning',
+          title: 'Insufficient Resources',
+          message: 'Failed to remove required resources for construction. Transaction rolled back.'
+        });
+        return false;
+      }
+      removed.push({ resourceId: resource.resourceId, amount: resource.amount });
     }
 
     // Create facility
@@ -238,10 +259,20 @@ export class ConstructionService {
       const tier = facilityId === FacilityId.TradeHub ? 3 :
                    facilityId === FacilityId.TradeStation ? 2 : 1;
       if (tier > system.tradeStationTier) {
+        // Update trade station flags
         this.gameState.updateSystem(system.id, {
           hasTradeStation: true,
           tradeStationTier: tier
         });
+
+        // Increase resource capacity on the system so the new trade facility can hold more goods
+        const state = this.gameState.getState();
+        const sys = state.systems[system.id];
+        if (sys && Array.isArray(sys.resources) && sys.resources.length > 0) {
+          const extra = 5000 * tier; // arbitrary additional capacity per tier
+          const newResources = sys.resources.map(r => ({ ...r, capacity: (r.capacity ?? 0) + extra }));
+          this.gameState.updateSystem(system.id, { resources: newResources });
+        }
       }
     }
 

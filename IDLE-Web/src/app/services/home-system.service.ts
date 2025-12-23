@@ -86,7 +86,7 @@ export class HomeSystemService {
       { resourceId: ResourceId.Steel, amount: 500, capacity: 10000 },
       { resourceId: ResourceId.GlassCeramics, amount: 200, capacity: 10000 },
       { resourceId: ResourceId.PurifiedWater, amount: 300, capacity: 10000 },
-      { resourceId: ResourceId.Fuel, amount: 200, capacity: 10000 },
+      { resourceId: ResourceId.Fuel, amount: 2000, capacity: 10000 },
       { resourceId: ResourceId.PreparedFoods, amount: 1000, capacity: 10000 },
       { resourceId: ResourceId.BasicGoods, amount: 100, capacity: 10000 },
       { resourceId: ResourceId.Components, amount: 50, capacity: 10000 }

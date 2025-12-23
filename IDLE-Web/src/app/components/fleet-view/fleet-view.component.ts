@@ -2,7 +2,8 @@ import { Component, inject, computed, signal } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { ExplorationService } from '../../services/exploration.service';
 import { ColonizationService } from '../../services/colonization.service';
-import { Ship, ShipType, ShipStatus, SHIP_SIZE_DEFINITIONS, SHIP_TIER_DEFINITIONS } from '../../models/ship.model';
+import { Ship, ShipType, ShipStatus, SHIP_SIZE_DEFINITIONS, SHIP_TIER_DEFINITIONS, calculateFuelCost } from '../../models/ship.model';
+import { getRouteDist } from '../../models/star-system.model';
 import { ResourceId, RESOURCE_DEFINITIONS } from '../../models/resource.model';
 
 @Component({
@@ -67,6 +68,15 @@ export class FleetViewComponent {
       if (available < req.amount) return false;
     }
 
+    // Also check fuel availability for the trip
+    const totalCargo = this.colonizationRequirements.reduce((s, c) => s + c.amount, 0);
+    const destination = this.systems()[targetId];
+    if (!destination) return false;
+    const distance = getRouteDist(origin.coordinates, destination.coordinates);
+    const fuelNeeded = calculateFuelCost(distance, totalCargo, freighter);
+    const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
+    if (fuelAvailable < fuelNeeded) return false;
+
     return true;
   });
 
@@ -80,6 +90,12 @@ export class FleetViewComponent {
 
   getSystemName(systemId: string): string {
     return this.systems()[systemId]?.name ?? 'Unknown';
+  }
+
+  getMissionShipName(mission: { shipId?: string } | any): string {
+    const shipId = mission?.shipId;
+    if (!shipId) return 'Unknown';
+    return this.ships()[shipId]?.name ?? 'Unknown';
   }
 
   getStatusClass(status: string): string {
@@ -129,10 +145,12 @@ export class FleetViewComponent {
   }
 
   selectFreighter(shipId: string): void {
+    console.debug('[FleetView] selectFreighter', shipId);
     this.selectedFreighterId.set(shipId);
   }
 
   selectTargetSystem(systemId: string): void {
+    console.debug('[FleetView] selectTargetSystem', systemId);
     this.selectedTargetSystemId.set(systemId);
   }
 
@@ -152,7 +170,11 @@ export class FleetViewComponent {
     const freighterId = this.selectedFreighterId();
     const targetId = this.selectedTargetSystemId();
 
-    if (!freighterId || !targetId) return;
+    console.debug('[FleetView] sendColonizationMission called', { freighterId, targetId });
+    if (!freighterId || !targetId) {
+      console.debug('[FleetView] sendColonizationMission aborted - missing selection');
+      return;
+    }
 
     const success = this.colonizationService.sendColonizationMission(
       freighterId,
@@ -165,5 +187,34 @@ export class FleetViewComponent {
       this.selectedFreighterId.set(null);
       this.selectedTargetSystemId.set(null);
     }
+  }
+
+  getColonizationDisabledReason(): string | null {
+    const freighterId = this.selectedFreighterId();
+    const targetId = this.selectedTargetSystemId();
+    if (!freighterId) return 'Select a freighter to send.';
+    if (!targetId) return 'Select a target system.';
+
+    const freighter = this.ships()[freighterId];
+    if (!freighter) return 'Selected freighter not found.';
+    if (freighter.status !== ShipStatus.Idle) return `${freighter.name} is not available.`;
+
+    const origin = this.systems()[freighter.currentSystemId];
+    const destination = this.systems()[targetId];
+    if (!origin || !destination) return 'Invalid origin or destination.';
+    if (destination.colonized) return 'Target system is already colonized.';
+
+    for (const req of this.colonizationRequirements) {
+      const available = this.gameState.getSystemResource(origin.id, req.resourceId);
+      if (available < req.amount) return `Insufficient ${req.resourceId} at origin.`;
+    }
+
+    const totalCargo = this.colonizationRequirements.reduce((s, c) => s + c.amount, 0);
+    const distance = getRouteDist(origin.coordinates, destination.coordinates);
+    const fuelNeeded = calculateFuelCost(distance, totalCargo, freighter);
+    const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
+    if (fuelAvailable < fuelNeeded) return `Insufficient fuel at origin (${Math.round(fuelAvailable)} available).`;
+
+    return null;
   }
 }

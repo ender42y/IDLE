@@ -62,7 +62,7 @@
         <h5>Active Missions</h5>
         @for (mission of activeMissions(); track mission.id) {
         <div class="mission-item">
-          <span class="mission-ship">{{ ships()[mission.shipId]?.name ?? 'Unknown' }}</span>
+          <span class="mission-ship">{{ getMissionShipName(mission) }}</span>
           <span class="mission-status">{{ mission.status }}</span>
           <span class="mission-eta">ETA: {{ formatTime(mission.returnTime) }}</span>
           <button mat-stroked-button
@@ -134,13 +134,18 @@
               </div>
             </div>
 
-            <button mat-raised-button
-                    color="primary"
-                    class="send-btn"
-                    [disabled]="!canSendColonization()"
-                    (click)="sendColonizationMission()">
-              Send Colonization Mission
-            </button>
+            <div class="colonize-actions">
+              <div class="disabled-reason" *ngIf="getColonizationDisabledReason()">
+                {{ getColonizationDisabledReason() }}
+              </div>
+              <button mat-raised-button
+                      color="primary"
+                      class="send-btn"
+                      [disabled]="!!getColonizationDisabledReason()"
+                      (click)="sendColonizationMission()">
+                Send Colonization Mission
+              </button>
+            </div>
           </div>
         }
       } @else if (uncolonizedSystems().length === 0) {

@@ -40,7 +40,10 @@ export class ColonizationService {
     const ship = state.ships[shipId];
     const destination = state.systems[destinationSystemId];
 
+    console.debug('[Colonization] sendColonizationMission called', { shipId, destinationSystemId, cargo });
+
     if (!ship || ship.type !== ShipType.Freighter) {
+      console.debug('[Colonization] invalid ship or wrong type', ship);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Invalid Ship',
@@ -50,6 +53,7 @@ export class ColonizationService {
     }
 
     if (ship.status !== ShipStatus.Idle) {
+      console.debug('[Colonization] ship busy', ship.status);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Ship Busy',
@@ -59,6 +63,7 @@ export class ColonizationService {
     }
 
     if (!destination || !destination.discovered) {
+      console.debug('[Colonization] invalid destination or not discovered', destination);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Invalid Destination',
@@ -75,6 +80,7 @@ export class ColonizationService {
     const totalCargo = cargo.reduce((sum, c) => sum + c.amount, 0);
 
     if (totalCargo > sizeDefinition.cargoCapacity) {
+      console.debug('[Colonization] cargo too large', { totalCargo, capacity: sizeDefinition.cargoCapacity });
       this.gameState.addNotification({
         type: 'warning',
         title: 'Cargo Too Large',
@@ -88,6 +94,7 @@ export class ColonizationService {
     for (const item of cargo) {
       const available = this.gameState.getSystemResource(origin.id, item.resourceId);
       if (available < item.amount) {
+        console.debug('[Colonization] insufficient resource at origin', { resourceId: item.resourceId, available, needed: item.amount });
         const name = RESOURCE_DEFINITIONS[item.resourceId]?.name ?? item.resourceId;
         this.gameState.addNotification({
           type: 'warning',
@@ -104,6 +111,7 @@ export class ColonizationService {
     const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
 
     if (fuelAvailable < fuelNeeded) {
+      console.debug('[Colonization] insufficient fuel', { fuelAvailable, fuelNeeded });
       this.gameState.addNotification({
         type: 'warning',
         title: 'Insufficient Fuel',
@@ -133,6 +141,8 @@ export class ColonizationService {
       arrivalTime: arrivalTime,
       currentCargo: loadedCargo
     });
+
+    console.debug('[Colonization] mission launched', { shipId, destinationId: destination.id, arrivalTime, loadedCargo });
 
     this.gameState.addNotification({
       type: 'info',
@@ -174,6 +184,8 @@ export class ColonizationService {
 
     const destination = state.systems[ship.destinationSystemId];
     if (!destination) return;
+
+    console.debug('[Colonization] completing mission', { shipId, destinationId: destination.id, currentCargo: ship.currentCargo });
 
     // Deliver cargo
     const deliveredCargo = ship.currentCargo ?? [];

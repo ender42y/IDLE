@@ -2,6 +2,7 @@ import { Component, inject, computed, signal } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { ProductionService } from '../../services/production.service';
 import { ConstructionService } from '../../services/construction.service';
+import { PopulationService } from '../../services/population.service';
 import { CelestialBody, BODY_TYPE_DEFINITIONS, FEATURE_DEFINITIONS } from '../../models/celestial-body.model';
 import { FACILITY_DEFINITIONS, FacilityId, FacilityDefinition } from '../../models/facility.model';
 import { RESOURCE_DEFINITIONS, ResourceId } from '../../models/resource.model';
@@ -15,13 +16,14 @@ export class SystemViewComponent {
   private gameState = inject(GameStateService);
   private productionService = inject(ProductionService);
   private constructionService = inject(ConstructionService);
+  private populationService = inject(PopulationService);
 
   readonly selectedSystem = this.gameState.selectedSystem;
   readonly selectedBody = this.gameState.selectedBody;
   readonly bodies = this.gameState.bodies;
   readonly facilities = this.gameState.facilities;
 
-  selectedFacilityToBuild: FacilityId | null = null;
+  selectedFacilityToBuild = signal<FacilityId | null>(null);
   showBuildMenu = false;
 
   // Signal to control whether unavailable facilities are shown
@@ -63,13 +65,27 @@ export class SystemViewComponent {
     const system = this.selectedSystem();
     if (!system) return [];
 
+    // Get consumption summary (per hour) from population service
+    const consumptionSummary = this.populationService.getConsumptionSummary(system.id)
+      .reduce((acc, cur) => {
+        acc[cur.resource] = cur.needed; // per hour
+        return acc;
+      }, {} as Record<string, number>);
+
     return system.resources
       .filter(r => r.amount > 0)
-      .map(r => ({
-        ...r,
-        name: RESOURCE_DEFINITIONS[r.resourceId]?.name ?? r.resourceId,
-        rate: this.productionService.getNetProductionRate(system.id, r.resourceId)
-      }))
+      .map(r => {
+        const rate = this.productionService.getNetProductionRate(system.id, r.resourceId);
+        const consumption = consumptionSummary[r.resourceId] ?? 0;
+        const overdraw = consumption > rate; // consumption higher than production
+        return {
+          ...r,
+          name: RESOURCE_DEFINITIONS[r.resourceId]?.name ?? r.resourceId,
+          rate,
+          consumption,
+          overdraw
+        };
+      })
       .sort((a, b) => (RESOURCE_DEFINITIONS[a.resourceId]?.tier ?? 0) - (RESOURCE_DEFINITIONS[b.resourceId]?.tier ?? 0));
   });
 
@@ -172,7 +188,7 @@ export class SystemViewComponent {
 
   // Selected facility cost computed to simplify template expression
   readonly selectedFacilityCost = computed(() => {
-    const fid = this.selectedFacilityToBuild;
+    const fid = this.selectedFacilityToBuild();
     if (!fid) return null;
     return this.getCost(fid);
   });
@@ -192,7 +208,7 @@ export class SystemViewComponent {
 
   toggleBuildMenu(): void {
     this.showBuildMenu = !this.showBuildMenu;
-    this.selectedFacilityToBuild = null;
+    this.selectedFacilityToBuild.set(null);
   }
 
   toggleShowUnavailableFacilities(): void {
@@ -200,16 +216,17 @@ export class SystemViewComponent {
   }
 
   selectFacilityToBuild(facilityId: FacilityId): void {
-    this.selectedFacilityToBuild = facilityId;
+    this.selectedFacilityToBuild.set(facilityId);
   }
 
   buildFacility(): void {
     const body = this.selectedBody();
-    if (!body || !this.selectedFacilityToBuild) return;
+    const fid = this.selectedFacilityToBuild();
+    if (!body || !fid) return;
 
-    this.constructionService.buildFacility(this.selectedFacilityToBuild, body.id);
+    this.constructionService.buildFacility(fid, body.id);
     this.showBuildMenu = false;
-    this.selectedFacilityToBuild = null;
+    this.selectedFacilityToBuild.set(null);
   }
 
   getCost(facilityId: FacilityId): ReturnType<ConstructionService['getConstructionCost']> {

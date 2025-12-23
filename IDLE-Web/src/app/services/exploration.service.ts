@@ -9,7 +9,7 @@ import {
   calculateTravelTime
 } from '../models/ship.model';
 import { ResourceId } from '../models/resource.model';
-import { getDistanceFromHome, getRouteDist } from '../models/star-system.model';
+import { getDistanceFromHome, getRouteDist, SystemRarity } from '../models/star-system.model';
 
 @Injectable({
   providedIn: 'root'
@@ -275,8 +275,12 @@ export class ExplorationService {
         // Wait until explorationComplete before generating system
         if (mission.explorationComplete && now >= mission.explorationComplete) {
           // Generate new system if not already done
-          if (!mission.discoveredSystemId && mission.targetCoordinates) {
-            const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates);
+            if (!mission.discoveredSystemId && mission.targetCoordinates) {
+            // If this is the first discovered non-home system, boost rarity and bodies
+            const discoveredCount = this.gameState.discoveredSystems().length;
+            const isFirstDiscovery = discoveredCount <= 1; // only 'Sol' exists initially
+
+            const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates, isFirstDiscovery ? { forceRarity: SystemRarity.Rare, increaseBodiesBy: 3 } : undefined);
             this.gameState.addSystem(newSystem);
 
             // Mark new system as surveyed since the scout just scanned it

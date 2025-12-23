@@ -46,12 +46,15 @@ export class GalaxyGeneratorService {
   /**
    * Generate a new star system at the given coordinates
    */
-  generateSystem(coordinates: { x: number; y: number }): StarSystem {
-    const rarity = this.rollRarity();
+  generateSystem(coordinates: { x: number; y: number }, options?: { forceRarity?: SystemRarity; increaseBodiesBy?: number }): StarSystem {
+    const rarity = options?.forceRarity ?? this.rollRarity();
     const rarityDef = SYSTEM_RARITY_DEFINITIONS[rarity];
 
     // Generate body count
-    const bodyCount = this.randomRange(rarityDef.bodiesMin, rarityDef.bodiesMax);
+    let bodyCount = this.randomRange(rarityDef.bodiesMin, rarityDef.bodiesMax);
+    if (options?.increaseBodiesBy) {
+      bodyCount = Math.min(20, bodyCount + options.increaseBodiesBy);
+    }
 
     // Generate name
     const name = this.generateSystemName();
