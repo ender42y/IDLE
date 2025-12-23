@@ -45,13 +45,25 @@ export class FleetViewComponent {
   showColonizationPanel = signal(false);
   selectedFreighterId = signal<string | null>(null);
   selectedTargetSystemId = signal<string | null>(null);
+  selectedPortBodyId = signal<string | null>(null);
 
   readonly colonizationRequirements = this.colonizationService.getColonizationRequirements();
+
+  readonly targetSystemBodies = computed(() => {
+    const targetId = this.selectedTargetSystemId();
+    if (!targetId) return [];
+    const target = this.systems()[targetId];
+    if (!target) return [];
+    return target.bodyIds
+      .map(id => this.gameState.getState().bodies[id])
+      .filter(body => body && body.orbitalSlots > 0); // Only bodies with orbital slots can have starports
+  });
 
   readonly canSendColonization = computed(() => {
     const freighterId = this.selectedFreighterId();
     const targetId = this.selectedTargetSystemId();
-    if (!freighterId || !targetId) return false;
+    const portBodyId = this.selectedPortBodyId();
+    if (!freighterId || !targetId || !portBodyId) return false;
 
     const freighter = this.ships()[freighterId];
     if (!freighter || freighter.status !== ShipStatus.Idle) return false;
@@ -141,21 +153,33 @@ export class FleetViewComponent {
     if (!this.showColonizationPanel()) {
       this.selectedFreighterId.set(null);
       this.selectedTargetSystemId.set(null);
+      this.selectedPortBodyId.set(null);
     }
   }
 
   selectFreighter(shipId: string): void {
-    console.debug('[FleetView] selectFreighter', shipId);
+    console.log('[FleetView] selectFreighter', shipId);
     this.selectedFreighterId.set(shipId);
   }
 
   selectTargetSystem(systemId: string): void {
-    console.debug('[FleetView] selectTargetSystem', systemId);
+    console.log('[FleetView] selectTargetSystem', systemId);
     this.selectedTargetSystemId.set(systemId);
+    // Reset port body selection when changing target system
+    this.selectedPortBodyId.set(null);
+  }
+
+  selectPortBody(bodyId: string): void {
+    console.log('[FleetView] selectPortBody', bodyId);
+    this.selectedPortBodyId.set(bodyId);
   }
 
   getResourceName(resourceId: ResourceId): string {
     return RESOURCE_DEFINITIONS[resourceId]?.name ?? resourceId;
+  }
+
+  getBodyTypeName(body: any): string {
+    return body.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
   }
 
   getResourceAvailable(resourceId: ResourceId): number {
@@ -169,31 +193,36 @@ export class FleetViewComponent {
   sendColonizationMission(): void {
     const freighterId = this.selectedFreighterId();
     const targetId = this.selectedTargetSystemId();
+    const portBodyId = this.selectedPortBodyId();
 
-    console.debug('[FleetView] sendColonizationMission called', { freighterId, targetId });
-    if (!freighterId || !targetId) {
-      console.debug('[FleetView] sendColonizationMission aborted - missing selection');
+    console.log('[FleetView] sendColonizationMission called', { freighterId, targetId, portBodyId });
+    if (!freighterId || !targetId || !portBodyId) {
+      console.log('[FleetView] sendColonizationMission aborted - missing selection');
       return;
     }
 
     const success = this.colonizationService.sendColonizationMission(
       freighterId,
       targetId,
-      this.colonizationRequirements
+      this.colonizationRequirements,
+      portBodyId
     );
 
     if (success) {
       this.showColonizationPanel.set(false);
       this.selectedFreighterId.set(null);
       this.selectedTargetSystemId.set(null);
+      this.selectedPortBodyId.set(null);
     }
   }
 
   getColonizationDisabledReason(): string | null {
     const freighterId = this.selectedFreighterId();
     const targetId = this.selectedTargetSystemId();
+    const portBodyId = this.selectedPortBodyId();
     if (!freighterId) return 'Select a freighter to send.';
     if (!targetId) return 'Select a target system.';
+    if (!portBodyId) return 'Select a body for the initial starport.';
 
     const freighter = this.ships()[freighterId];
     if (!freighter) return 'Selected freighter not found.';

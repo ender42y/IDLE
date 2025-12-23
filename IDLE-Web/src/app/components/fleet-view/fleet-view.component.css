@@ -20,6 +20,12 @@
   font-size: 1rem;
   border-bottom: 1px solid #3a3a5a;
   padding-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Ships panel - make entire content scrollable */
+.ships-panel {
+  overflow-y: auto;
 }
 
 .ships-list,
@@ -30,6 +36,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Override for ships-list to prevent double scrolling */
+.ships-panel .ships-list {
+  flex: 0 0 auto;
+  overflow-y: visible;
 }
 
 .ship-card,
@@ -160,6 +172,7 @@
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #3a3a5a;
+  flex-shrink: 0;
 }
 
 .scout-controls h4,
@@ -232,6 +245,7 @@
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
+  overflow-x: hidden;
 }
 
 .colonization-step {
@@ -312,6 +326,22 @@
 .req-available {
   font-size: 0.75rem;
   color: #888;
+}
+
+.colonize-actions {
+  position: sticky;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  margin: 0 -1rem -1rem -1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.disabled-reason {
+  color: #ff9800;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .send-btn {

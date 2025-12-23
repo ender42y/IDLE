@@ -121,6 +121,26 @@
               </div>
             </div>
 
+            @if (selectedTargetSystemId()) {
+              <div class="colonization-step">
+                <h5>3. Select Body for Initial Starport</h5>
+                <div class="selection-list">
+                  @for (body of targetSystemBodies(); track body.id) {
+                    <div class="selection-item"
+                         [class.selected]="selectedPortBodyId() === body.id"
+                         (click)="selectPortBody(body.id)">
+                      <span>{{ body.name }}</span>
+                      <span class="body-type">{{ getBodyTypeName(body) }}</span>
+                      <span class="orbital-slots">🛰 {{ body.orbitalSlots }} slots</span>
+                    </div>
+                  }
+                  @empty {
+                    <div class="empty-message">No suitable bodies with orbital slots</div>
+                  }
+                </div>
+              </div>
+            }
+
             <div class="colonization-step">
               <h5>Required Supplies</h5>
               <div class="requirements-list">
