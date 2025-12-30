@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
-import { ConstructionService } from './construction.service';
 import { ResourceId, RESOURCE_DEFINITIONS } from '../models/resource.model';
 import {
   Ship,
@@ -11,7 +10,7 @@ import {
   calculateTravelTime
 } from '../models/ship.model';
 import { getRouteDist } from '../models/star-system.model';
-import { FacilityId } from '../models/facility.model';
+import { FacilityId, Facility } from '../models/facility.model';
 
 export interface ColonizationMission {
   id: string;
@@ -40,7 +39,6 @@ export interface ColonizationMission {
 })
 export class ColonizationService {
   private gameState = inject(GameStateService);
-  private constructionService = inject(ConstructionService);
 
   /**
    * Send a freighter to colonize a new system
@@ -352,6 +350,54 @@ export class ColonizationService {
       }
     }
 
+    // Subtract delivered cargo from remainingCargo
+    for (const cargo of deliveredThisTrip) {
+      const remaining = mission.remainingCargo.find(r => r.resourceId === cargo.resourceId);
+      if (remaining) {
+        remaining.amount -= cargo.amount;
+        if (remaining.amount <= 0) {
+          remaining.amount = 0;
+        }
+      }
+    }
+
+    // On first delivery, create Colony Ship to hold supplies
+    if (mission.tripsCompleted === 0) {
+      const starportBodyId = mission.starportBodyId || ship.colonizationTargetBodyId;
+      if (starportBodyId) {
+        const targetBody = state.bodies[starportBodyId];
+        if (targetBody && targetBody.systemId === destination.id) {
+          // Create Colony Ship facility directly (bypassing construction costs)
+          const colonyShipId = this.gameState.generateId();
+          const colonyShip: Facility = {
+            id: colonyShipId,
+            definitionId: FacilityId.ColonyShip,
+            bodyId: starportBodyId,
+            level: 1,
+            condition: 100,
+            operational: true
+          };
+
+          this.gameState.addFacility(colonyShip);
+
+          // Update body slot usage
+          this.gameState.updateBody(starportBodyId, {
+            usedOrbitalSlots: targetBody.usedOrbitalSlots + 1,
+            facilityIds: [...targetBody.facilityIds, colonyShipId]
+          });
+
+          console.log('[Colonization] Colony Ship established on', targetBody.name);
+
+          this.gameState.addNotification({
+            type: 'info',
+            title: 'Colony Ship Established',
+            message: `Colony Ship is now holding supplies in orbit around ${targetBody.name}.`,
+            systemId: destination.id
+          });
+        }
+      }
+    }
+
     mission.tripsCompleted++;
 
     // Check if there's more cargo to deliver
@@ -435,17 +481,63 @@ export class ColonizationService {
           totalPopulation: initialPopulation
         });
 
-        // Build initial starport
+        // Build initial starport by converting Colony Ship
         const starportBodyId = mission.starportBodyId || ship.colonizationTargetBodyId;
         if (starportBodyId) {
           const targetBody = state.bodies[starportBodyId];
           if (targetBody && targetBody.systemId === destination.id) {
-            const built = this.constructionService.buildFacility(FacilityId.TradeOutpost, starportBodyId);
-            if (built) {
-              console.log('[Colonization] Initial starport built on', targetBody.name);
-            } else {
-              console.warn('[Colonization] Failed to build initial starport on', targetBody.name);
+            // Find and remove the Colony Ship
+            const colonyShipFacility = targetBody.facilityIds
+              .map(id => state.facilities[id])
+              .find(f => f && f.definitionId === FacilityId.ColonyShip);
+
+            if (colonyShipFacility) {
+              // Remove Colony Ship (it will be replaced by Trade Outpost)
+              const newFacilityIds = targetBody.facilityIds.filter(id => id !== colonyShipFacility.id);
+              this.gameState.updateBody(starportBodyId, {
+                usedOrbitalSlots: targetBody.usedOrbitalSlots - 1,
+                facilityIds: newFacilityIds
+              });
+              this.gameState.removeFacility(colonyShipFacility.id);
+              console.log('[Colonization] Colony Ship removed from', targetBody.name);
             }
+
+            // Create Trade Outpost directly (resources already delivered)
+            const tradeOutpostId = this.gameState.generateId();
+            const tradeOutpost: Facility = {
+              id: tradeOutpostId,
+              definitionId: FacilityId.TradeOutpost,
+              bodyId: starportBodyId,
+              level: 1,
+              condition: 100,
+              operational: true
+            };
+
+            this.gameState.addFacility(tradeOutpost);
+
+            // Update body slot usage
+            this.gameState.updateBody(starportBodyId, {
+              usedOrbitalSlots: targetBody.usedOrbitalSlots + 1,
+              facilityIds: [...targetBody.facilityIds, tradeOutpostId]
+            });
+
+            // Update system trade station status
+            this.gameState.updateSystem(destination.id, {
+              hasTradeStation: true,
+              tradeStationTier: 1
+            });
+
+            // Increase resource capacity on the system
+            if (destination.resources && destination.resources.length > 0) {
+              const extra = 5000; // Trade Outpost tier 1 capacity
+              const newResources = destination.resources.map(r => ({
+                ...r,
+                capacity: (r.capacity ?? 0) + extra
+              }));
+              this.gameState.updateSystem(destination.id, { resources: newResources });
+            }
+
+            console.log('[Colonization] Trade Outpost established on', targetBody.name);
           } else {
             console.warn('[Colonization] Invalid colonization target body', starportBodyId);
           }
@@ -457,8 +549,44 @@ export class ColonizationService {
             .filter(b => b && b.orbitalSlots > 0);
           if (bodiesWithOrbitalSlots.length > 0) {
             const fallbackBody = bodiesWithOrbitalSlots[0];
-            this.constructionService.buildFacility(FacilityId.TradeOutpost, fallbackBody.id);
-            console.log('[Colonization] Built fallback starport on', fallbackBody.name);
+
+            // Find and remove the Colony Ship
+            const colonyShipFacility = fallbackBody.facilityIds
+              .map(id => state.facilities[id])
+              .find(f => f && f.definitionId === FacilityId.ColonyShip);
+
+            if (colonyShipFacility) {
+              const newFacilityIds = fallbackBody.facilityIds.filter(id => id !== colonyShipFacility.id);
+              this.gameState.updateBody(fallbackBody.id, {
+                usedOrbitalSlots: fallbackBody.usedOrbitalSlots - 1,
+                facilityIds: newFacilityIds
+              });
+              this.gameState.removeFacility(colonyShipFacility.id);
+            }
+
+            // Create Trade Outpost directly
+            const tradeOutpostId = this.gameState.generateId();
+            const tradeOutpost: Facility = {
+              id: tradeOutpostId,
+              definitionId: FacilityId.TradeOutpost,
+              bodyId: fallbackBody.id,
+              level: 1,
+              condition: 100,
+              operational: true
+            };
+
+            this.gameState.addFacility(tradeOutpost);
+            this.gameState.updateBody(fallbackBody.id, {
+              usedOrbitalSlots: fallbackBody.usedOrbitalSlots + 1,
+              facilityIds: [...fallbackBody.facilityIds, tradeOutpostId]
+            });
+
+            this.gameState.updateSystem(destination.id, {
+              hasTradeStation: true,
+              tradeStationTier: 1
+            });
+
+            console.log('[Colonization] Built fallback Trade Outpost on', fallbackBody.name);
           }
         }
 
@@ -546,6 +674,17 @@ export class ColonizationService {
       }
 
       if (cargoLoaded >= sizeDefinition.cargoCapacity) break;
+    }
+
+    // Subtract loaded cargo from remainingCargo
+    for (const cargo of nextTripCargo) {
+      const remaining = mission.remainingCargo.find(r => r.resourceId === cargo.resourceId);
+      if (remaining) {
+        remaining.amount -= cargo.amount;
+        if (remaining.amount <= 0) {
+          remaining.amount = 0;
+        }
+      }
     }
 
     // Calculate fuel for round trip

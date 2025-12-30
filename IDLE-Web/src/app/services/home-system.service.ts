@@ -82,14 +82,14 @@ export class HomeSystemService {
 
   private createStartingResources(): ResourceStock[] {
     return [
-      { resourceId: ResourceId.Credits, amount: 10000, capacity: 1000000 },
-      { resourceId: ResourceId.Steel, amount: 500, capacity: 10000 },
-      { resourceId: ResourceId.GlassCeramics, amount: 200, capacity: 10000 },
-      { resourceId: ResourceId.PurifiedWater, amount: 300, capacity: 10000 },
-      { resourceId: ResourceId.Fuel, amount: 2000, capacity: 10000 },
-      { resourceId: ResourceId.PreparedFoods, amount: 1000, capacity: 10000 },
-      { resourceId: ResourceId.BasicGoods, amount: 100, capacity: 10000 },
-      { resourceId: ResourceId.Components, amount: 50, capacity: 10000 }
+      { resourceId: ResourceId.Credits, amount: 100000, capacity: 1000000 },
+      { resourceId: ResourceId.Steel, amount: 5000, capacity: 10000 },
+      { resourceId: ResourceId.GlassCeramics, amount: 2000, capacity: 10000 },
+      { resourceId: ResourceId.PurifiedWater, amount: 3000, capacity: 10000 },
+      { resourceId: ResourceId.Fuel, amount: 20000, capacity: 100000 },
+      { resourceId: ResourceId.PreparedFoods, amount: 10000, capacity: 10000 },
+      { resourceId: ResourceId.BasicGoods, amount: 1000, capacity: 10000 },
+      { resourceId: ResourceId.Components, amount: 500, capacity: 10000 }
     ];
   }
 
