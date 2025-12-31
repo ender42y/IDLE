@@ -350,17 +350,6 @@ export class ColonizationService {
       }
     }
 
-    // Subtract delivered cargo from remainingCargo
-    for (const cargo of deliveredThisTrip) {
-      const remaining = mission.remainingCargo.find(r => r.resourceId === cargo.resourceId);
-      if (remaining) {
-        remaining.amount -= cargo.amount;
-        if (remaining.amount <= 0) {
-          remaining.amount = 0;
-        }
-      }
-    }
-
     // On first delivery, create Colony Ship to hold supplies
     if (mission.tripsCompleted === 0) {
       const starportBodyId = mission.starportBodyId || ship.colonizationTargetBodyId;
