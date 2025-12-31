@@ -34,4 +34,61 @@
       <button (click)="centerOnHome()">Center on Sol</button>
     </div>
   </div>
+
+  <div class="celestial-bodies-sidebar">
+    @if (selectedSystem(); as system) {
+      <h3>Celestial Bodies</h3>
+      <div class="system-name-header">{{ system.name }}</div>
+      <div class="bodies-list">
+        @for (body of systemBodies(); track body.id) {
+          <div
+            class="body-item"
+            [class.moon]="!!body.parentBodyId">
+            <div class="body-icon" [attr.data-type]="body.type">
+              @switch (body.type) {
+                @case ('star') { ☀ }
+                @case ('gas_giant') { 🪐 }
+                @case ('terraformable_planet') { 🌍 }
+                @case ('terrestrial_planet') { 🌑 }
+                @case ('icy_moon') { ❄ }
+                @case ('moon') { 🌙 }
+              }
+            </div>
+            <div class="body-info">
+              <span class="body-name">{{ body.name }}</span>
+              <span class="body-type">{{ getBodyTypeName(body) }}</span>
+              @if (body.features.length > 0) {
+                <div class="body-features">
+                  @for (feature of body.features; track feature) {
+                    <span class="feature-badge" [title]="getFeatureName(feature)">
+                      @switch (feature) {
+                        @case ('high_metal_content') { ⛏️ }
+                        @case ('fertile_soil') { 🌾 }
+                        @case ('rare_element_deposits') { 💎 }
+                        @case ('exotic_atmosphere') { 🌫️ }
+                        @case ('ice_deposits') { ❄️ }
+                        @case ('scenic_vistas') { 🏞️ }
+                        @case ('habitable') { 🏡 }
+                      }
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+            <div class="body-slots">
+              <span class="slot-count" title="Surface slots">🏗 {{ body.usedSurfaceSlots }}/{{ body.surfaceSlots }}</span>
+              <span class="slot-count" title="Orbital slots">🛰 {{ body.usedOrbitalSlots }}/{{ body.orbitalSlots }}</span>
+            </div>
+          </div>
+        }
+        @empty {
+          <div class="empty-message">No bodies in system</div>
+        }
+      </div>
+    } @else {
+      <div class="no-selection">
+        <p>Select a system to view celestial bodies</p>
+      </div>
+    }
+  </div>
 </div>

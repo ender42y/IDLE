@@ -2,6 +2,7 @@ import { Component, inject, computed, ElementRef, ViewChild, AfterViewInit } fro
 import { GameStateService } from '../../services/game-state.service';
 import { ExplorationService } from '../../services/exploration.service';
 import { StarSystem, getDistanceFromHome } from '../../models/star-system.model';
+import { CelestialBody, BODY_TYPE_DEFINITIONS, FEATURE_DEFINITIONS } from '../../models/celestial-body.model';
 
 @Component({
   selector: 'app-galaxy-view',
@@ -18,6 +19,7 @@ export class GalaxyViewComponent implements AfterViewInit {
   readonly selectedSystem = this.gameState.selectedSystem;
   readonly ships = this.gameState.ships;
   readonly scoutMissions = this.gameState.scoutMissions;
+  readonly bodies = this.gameState.bodies;
 
   viewOffset = { x: 0, y: 0 };
   viewScale = 20; // pixels per light year
@@ -34,6 +36,38 @@ export class GalaxyViewComponent implements AfterViewInit {
 
   readonly activeMissions = computed(() => {
     return Object.values(this.scoutMissions()).filter(m => m.status !== 'completed');
+  });
+
+  readonly systemBodies = computed(() => {
+    const system = this.selectedSystem();
+    if (!system) return [];
+
+    const allBodies = system.bodyIds
+      .map(id => this.bodies()[id])
+      .filter(Boolean);
+
+    // Separate into primary bodies (stars/planets) and moons
+    const primaryBodies = allBodies
+      .filter(b => !b.parentBodyId)
+      .sort((a, b) => {
+        // Star first, then sort by name
+        if (a.type === 'star') return -1;
+        if (b.type === 'star') return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+    // Build final list with moons placed directly after their parent
+    const result: CelestialBody[] = [];
+    for (const body of primaryBodies) {
+      result.push(body);
+      // Find and add moons of this body, sorted by name
+      const moons = allBodies
+        .filter(b => b.parentBodyId === body.id)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      result.push(...moons);
+    }
+
+    return result;
   });
 
   ngAfterViewInit(): void {
@@ -183,5 +217,13 @@ export class GalaxyViewComponent implements AfterViewInit {
     if (hours > 0) return `${hours}h ${minutes}m`;
     if (minutes > 0) return `${minutes}m ${seconds}s`;
     return `${seconds}s`;
+  }
+
+  getBodyTypeName(body: CelestialBody): string {
+    return BODY_TYPE_DEFINITIONS[body.type]?.name ?? body.type;
+  }
+
+  getFeatureName(feature: string): string {
+    return FEATURE_DEFINITIONS[feature as keyof typeof FEATURE_DEFINITIONS]?.name ?? feature;
   }
 }

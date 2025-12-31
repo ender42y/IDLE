@@ -2,8 +2,9 @@ import { Component, inject, computed, signal } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { ProductionService } from '../../services/production.service';
 import { ConstructionService } from '../../services/construction.service';
+import { PopulationService } from '../../services/population.service';
 import { CelestialBody, BODY_TYPE_DEFINITIONS, FEATURE_DEFINITIONS } from '../../models/celestial-body.model';
-import { FACILITY_DEFINITIONS, FacilityId } from '../../models/facility.model';
+import { FACILITY_DEFINITIONS, FacilityId, FacilityDefinition } from '../../models/facility.model';
 import { RESOURCE_DEFINITIONS, ResourceId } from '../../models/resource.model';
 
 @Component({
@@ -15,13 +16,14 @@ export class SystemViewComponent {
   private gameState = inject(GameStateService);
   private productionService = inject(ProductionService);
   private constructionService = inject(ConstructionService);
+  private populationService = inject(PopulationService);
 
   readonly selectedSystem = this.gameState.selectedSystem;
   readonly selectedBody = this.gameState.selectedBody;
   readonly bodies = this.gameState.bodies;
   readonly facilities = this.gameState.facilities;
 
-  selectedFacilityToBuild: FacilityId | null = null;
+  selectedFacilityToBuild = signal<FacilityId | null>(null);
   showBuildMenu = false;
 
   // Signal to control whether unavailable facilities are shown
@@ -63,13 +65,27 @@ export class SystemViewComponent {
     const system = this.selectedSystem();
     if (!system) return [];
 
+    // Get consumption summary (per hour) from population service
+    const consumptionSummary = this.populationService.getConsumptionSummary(system.id)
+      .reduce((acc, cur) => {
+        acc[cur.resource] = cur.needed; // per hour
+        return acc;
+      }, {} as Record<string, number>);
+
     return system.resources
       .filter(r => r.amount > 0)
-      .map(r => ({
-        ...r,
-        name: RESOURCE_DEFINITIONS[r.resourceId]?.name ?? r.resourceId,
-        rate: this.productionService.getNetProductionRate(system.id, r.resourceId)
-      }))
+      .map(r => {
+        const rate = this.productionService.getNetProductionRate(system.id, r.resourceId);
+        const consumption = consumptionSummary[r.resourceId] ?? 0;
+        const overdraw = consumption > rate; // consumption higher than production
+        return {
+          ...r,
+          name: RESOURCE_DEFINITIONS[r.resourceId]?.name ?? r.resourceId,
+          rate,
+          consumption,
+          overdraw
+        };
+      })
       .sort((a, b) => (RESOURCE_DEFINITIONS[a.resourceId]?.tier ?? 0) - (RESOURCE_DEFINITIONS[b.resourceId]?.tier ?? 0));
   });
 
@@ -77,13 +93,21 @@ export class SystemViewComponent {
     const body = this.selectedBody();
     if (!body) return [];
 
+    const system = this.selectedSystem();
+    if (!system) return [];
+
     return body.facilityIds
       .map(id => this.facilities()[id])
       .filter(Boolean)
-      .map(f => ({
-        ...f,
-        definition: FACILITY_DEFINITIONS[f.definitionId]
-      }));
+      .map(f => {
+        const definition = FACILITY_DEFINITIONS[f.definitionId];
+        const rateInfo = this.getFacilityRateInfo(definition, system.id);
+        return {
+          ...f,
+          definition,
+          rateInfo
+        };
+      });
   });
 
   // Available facilities: filter by slot types that actually have open slots, sort by tier then name
@@ -111,31 +135,45 @@ export class SystemViewComponent {
       // Determine affordability
       const affordable = !!cost && cost.canAfford;
 
-      // Build tooltip
-      let tooltip = '';
+      // Get rate info for tooltip
+      const rateInfo = this.getFacilityRateInfo(a.facility);
+
+      // Build tooltip with rate info
+      const tooltipParts: string[] = [];
+
+      // Add production rate info
+      if (rateInfo) {
+        tooltipParts.push(rateInfo);
+      }
+
+      // Add population floor info
+      if (a.facility.populationFloor > 0) {
+        tooltipParts.push(`Pop: +${a.facility.populationFloor}`);
+      }
+
+      // Add build status
       if (!a.canBuild) {
-        tooltip = a.reason ?? 'Cannot build here';
-      } else if (!cost) {
-        tooltip = 'Cost unavailable';
-      } else {
+        tooltipParts.push(`Cannot: ${a.reason}`);
+      } else if (!affordable) {
         const missing: string[] = [];
-        if (state.credits < cost.credits) {
-          const deficit = cost.credits - state.credits;
-          missing.push(`Credits: need ${deficit}`);
+        if (cost && state.credits < cost.credits) {
+          missing.push(`${cost.credits - state.credits} credits`);
         }
-        for (const res of cost.resources) {
-          if (res.available < res.amount) {
-            const d = res.amount - res.available;
-            missing.push(`${res.name}: need ${d}`);
+        if (cost) {
+          for (const res of cost.resources) {
+            if (res.available < res.amount) {
+              missing.push(`${res.amount - res.available} ${res.name}`);
+            }
           }
         }
-        tooltip = missing.length > 0 ? `Missing - ${missing.join(', ')}` : 'Affordable';
+        tooltipParts.push(`Need: ${missing.join(', ')}`);
       }
 
       return {
         ...a,
         affordable,
-        tooltip
+        rateInfo,
+        tooltip: tooltipParts.join(' | ')
       };
     });
 
@@ -150,7 +188,7 @@ export class SystemViewComponent {
 
   // Selected facility cost computed to simplify template expression
   readonly selectedFacilityCost = computed(() => {
-    const fid = this.selectedFacilityToBuild;
+    const fid = this.selectedFacilityToBuild();
     if (!fid) return null;
     return this.getCost(fid);
   });
@@ -170,7 +208,7 @@ export class SystemViewComponent {
 
   toggleBuildMenu(): void {
     this.showBuildMenu = !this.showBuildMenu;
-    this.selectedFacilityToBuild = null;
+    this.selectedFacilityToBuild.set(null);
   }
 
   toggleShowUnavailableFacilities(): void {
@@ -178,16 +216,17 @@ export class SystemViewComponent {
   }
 
   selectFacilityToBuild(facilityId: FacilityId): void {
-    this.selectedFacilityToBuild = facilityId;
+    this.selectedFacilityToBuild.set(facilityId);
   }
 
   buildFacility(): void {
     const body = this.selectedBody();
-    if (!body || !this.selectedFacilityToBuild) return;
+    const fid = this.selectedFacilityToBuild();
+    if (!body || !fid) return;
 
-    this.constructionService.buildFacility(this.selectedFacilityToBuild, body.id);
+    this.constructionService.buildFacility(fid, body.id);
     this.showBuildMenu = false;
-    this.selectedFacilityToBuild = null;
+    this.selectedFacilityToBuild.set(null);
   }
 
   getCost(facilityId: FacilityId): ReturnType<ConstructionService['getConstructionCost']> {
@@ -212,5 +251,66 @@ export class SystemViewComponent {
   formatRate(rate: number): string {
     const formatted = this.formatNumber(rate);
     return rate >= 0 ? `+${formatted}/h` : `${formatted}/h`;
+  }
+
+  /**
+   * Get production/conversion rate info for a facility definition
+   */
+  getFacilityRateInfo(definition: FacilityDefinition, systemId?: string): string {
+    if (definition.production) {
+      const outputName = RESOURCE_DEFINITIONS[definition.production.output]?.name ?? definition.production.output;
+      return `Produces ${definition.production.baseRate} ${outputName}/h`;
+    }
+
+    if (definition.conversion) {
+      const conv = definition.conversion;
+      const inputParts = conv.inputs.map(inp => {
+        const name = RESOURCE_DEFINITIONS[inp.resourceId]?.name ?? inp.resourceId;
+        return `${inp.amount * conv.throughput} ${name}`;
+      });
+      const outputName = RESOURCE_DEFINITIONS[conv.output]?.name ?? conv.output;
+      const outputRate = conv.throughput * conv.efficiency;
+      return `${inputParts.join(' + ')} -> ${outputRate} ${outputName}/h`;
+    }
+
+    if (definition.bonuses) {
+      const parts: string[] = [];
+      if (definition.bonuses.tradeCapacity) parts.push(`Trade Tier ${definition.bonuses.tradeCapacity}`);
+      if (definition.bonuses.techLevel) parts.push(`+${definition.bonuses.techLevel} Tech`);
+      if (definition.bonuses.securityLevel) parts.push(`+${definition.bonuses.securityLevel} Security`);
+      if (definition.bonuses.commsRange) parts.push(`+${definition.bonuses.commsRange} Comms Range`);
+      if (definition.bonuses.creditBonus) parts.push(`+${(definition.bonuses.creditBonus * 100).toFixed(0)}% Credits`);
+      if (definition.bonuses.solBonus) parts.push(`+${(definition.bonuses.solBonus * 100).toFixed(0)}% SoL`);
+      return parts.length > 0 ? parts.join(', ') : 'Support Facility';
+    }
+
+    return '';
+  }
+
+  /**
+   * Get tooltip with rate info for build menu
+   */
+  getBuildTooltip(facility: FacilityDefinition, canBuild: boolean, reason?: string, affordable?: boolean): string {
+    const lines: string[] = [];
+
+    // Add rate info
+    const rateInfo = this.getFacilityRateInfo(facility);
+    if (rateInfo) {
+      lines.push(rateInfo);
+    }
+
+    // Add population floor
+    if (facility.populationFloor > 0) {
+      lines.push(`Pop. Floor: +${facility.populationFloor}`);
+    }
+
+    // Add build status
+    if (!canBuild) {
+      lines.push(`Cannot build: ${reason}`);
+    } else if (!affordable) {
+      lines.push('Cannot afford');
+    }
+
+    return lines.join(' | ');
   }
 }

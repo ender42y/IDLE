@@ -9,7 +9,7 @@ import {
   calculateTravelTime
 } from '../models/ship.model';
 import { ResourceId } from '../models/resource.model';
-import { getDistanceFromHome, getRouteDist } from '../models/star-system.model';
+import { getDistanceFromHome, getRouteDist, SystemRarity } from '../models/star-system.model';
 
 @Injectable({
   providedIn: 'root'
@@ -107,9 +107,10 @@ export class ExplorationService {
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
     // Calculate timing based on distance and ship speed
-    // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min
-    const scoutSpeed = (ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1);
+    // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min //add multiplier for testing
+    const scoutSpeed = ((ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1)) *10;
     const outboundTimeHours = distance / scoutSpeed;
+
     const explorationTimeHours = 1 / 60; // 1 minute to explore
     const returnTimeHours = distance / scoutSpeed;
     const totalTimeHours = outboundTimeHours + explorationTimeHours + returnTimeHours;
@@ -275,8 +276,12 @@ export class ExplorationService {
         // Wait until explorationComplete before generating system
         if (mission.explorationComplete && now >= mission.explorationComplete) {
           // Generate new system if not already done
-          if (!mission.discoveredSystemId && mission.targetCoordinates) {
-            const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates);
+            if (!mission.discoveredSystemId && mission.targetCoordinates) {
+            // If this is the first discovered non-home system, boost rarity and bodies
+            const discoveredCount = this.gameState.discoveredSystems().length;
+            const isFirstDiscovery = discoveredCount <= 1; // only 'Sol' exists initially
+
+            const newSystem = this.galaxyGenerator.generateSystem(mission.targetCoordinates, isFirstDiscovery ? { forceRarity: SystemRarity.Rare, increaseBodiesBy: 3 } : undefined);
             this.gameState.addSystem(newSystem);
 
             // Mark new system as surveyed since the scout just scanned it
@@ -285,6 +290,13 @@ export class ExplorationService {
               surveyedAt: Date.now(),
               surveyProgress: 100
             });
+
+            // Mark all bodies in the new system as surveyed
+            for (const bodyId of newSystem.bodyIds) {
+              this.gameState.updateBody(bodyId, {
+                surveyed: true
+              });
+            }
 
             // Set mission to returning and record discovered system
             this.gameState.updateScoutMission(mission.id, {

@@ -17,12 +17,24 @@ import {
 import { ResourceId } from '../models/resource.model';
 
 // System naming themes
-const GREEK_LETTERS = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu'];
-const CONSTELLATIONS = ['Centauri', 'Cygni', 'Eridani', 'Cassiopeiae', 'Draconis', 'Orionis', 'Tauri', 'Leonis', 'Aquilae', 'Lyrae'];
-const DESCRIPTIVE_PREFIXES = ['New', 'Nova', 'Far', 'Deep', 'Outer', 'Inner', 'High', 'Low'];
-const DESCRIPTIVE_SUFFIXES = ['Haven', 'Hope', 'Prime', 'Major', 'Minor', 'Station', 'Colony', 'Outpost'];
-const MYTHOLOGY = ['Prometheus', 'Icarus', 'Daedalus', 'Perseus', 'Andromeda', 'Orion', 'Artemis', 'Apollo', 'Helios', 'Selene'];
-const CORPORATE = ['Weyland', 'Tyrell', 'Axiom', 'Nexus', 'Stellar', 'Frontier', 'Pioneer', 'Venture', 'Unity', 'Horizon'];
+const GREEK_LETTERS = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'];
+const CONSTELLATIONS = [
+  // Major constellations
+  'Centauri', 'Cygni', 'Eridani', 'Cassiopeiae', 'Draconis', 'Orionis', 'Tauri', 'Leonis', 'Aquilae', 'Lyrae',
+  // Zodiac constellations
+  'Arietis', 'Geminorum', 'Cancri', 'Virginis', 'Librae', 'Scorpii', 'Sagittarii', 'Capricorni', 'Aquarii', 'Piscium',
+  // Northern constellations
+  'Ursae Majoris', 'Ursae Minoris', 'Bootis', 'Coronae Borealis', 'Herculis', 'Serpentis', 'Ophiuchi', 'Pegasi', 'Andromedae', 'Persei',
+  // Southern constellations
+  'Carinae', 'Velorum', 'Puppis', 'Crucis', 'Centauri', 'Pavonis', 'Gruis', 'Phoenicis', 'Tucani', 'Hydrae',
+  // Additional constellations
+  'Ceti', 'Aquilae', 'Cephei', 'Canum Venaticorum', 'Comae Berenices', 'Corvi', 'Crateris', 'Delphini', 'Equulei', 'Vulpeculae',
+  'Lacertae', 'Lyncis', 'Monocerotis', 'Pictoris', 'Sculptoris', 'Trianguli', 'Aurigae', 'Canis Majoris', 'Canis Minoris', 'Columbae'
+];
+const DESCRIPTIVE_PREFIXES = ['New', 'Nova', 'Far', 'Deep', 'Outer', 'Inner', 'High', 'Low', 'First', 'Last', 'Greater', 'Lesser'];
+const DESCRIPTIVE_SUFFIXES = ['Haven', 'Hope', 'Prime', 'Major', 'Minor', 'Station', 'Colony', 'Outpost', 'Reach', 'Gate', 'Point', 'Landing', 'Port', 'Terminus'];
+const MYTHOLOGY = ['Prometheus', 'Icarus', 'Daedalus', 'Perseus', 'Andromeda', 'Orion', 'Artemis', 'Apollo', 'Helios', 'Selene', 'Atlas', 'Titan', 'Hyperion', 'Theseus', 'Achilles', 'Odysseus', 'Hera', 'Athena', 'Poseidon', 'Ares', 'Hephaestus', 'Hermes', 'Dionysus', 'Demeter'];
+const CORPORATE = ['Weyland', 'Tyrell', 'Axiom', 'Nexus', 'Stellar', 'Frontier', 'Pioneer', 'Venture', 'Unity', 'Horizon', 'Genesis', 'Apex', 'Nova', 'Zenith', 'Quantum', 'Vector', 'Helix', 'Catalyst', 'Synergy', 'Vanguard'];
 
 @Injectable({
   providedIn: 'root'
@@ -34,12 +46,15 @@ export class GalaxyGeneratorService {
   /**
    * Generate a new star system at the given coordinates
    */
-  generateSystem(coordinates: { x: number; y: number }): StarSystem {
-    const rarity = this.rollRarity();
+  generateSystem(coordinates: { x: number; y: number }, options?: { forceRarity?: SystemRarity; increaseBodiesBy?: number }): StarSystem {
+    const rarity = options?.forceRarity ?? this.rollRarity();
     const rarityDef = SYSTEM_RARITY_DEFINITIONS[rarity];
 
     // Generate body count
-    const bodyCount = this.randomRange(rarityDef.bodiesMin, rarityDef.bodiesMax);
+    let bodyCount = this.randomRange(rarityDef.bodiesMin, rarityDef.bodiesMax);
+    if (options?.increaseBodiesBy) {
+      bodyCount = Math.min(20, bodyCount + options.increaseBodiesBy);
+    }
 
     // Generate name
     const name = this.generateSystemName();

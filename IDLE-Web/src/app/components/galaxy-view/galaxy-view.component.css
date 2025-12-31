@@ -145,3 +145,127 @@
 .map-controls button:hover {
   background: rgba(0, 0, 0, 0.8);
 }
+
+/* Celestial Bodies Sidebar */
+.celestial-bodies-sidebar {
+  width: 320px;
+  background: rgba(30, 30, 50, 0.8);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.celestial-bodies-sidebar h3 {
+  margin: 0 0 0.5rem 0;
+  color: #7c4dff;
+  font-size: 1rem;
+  border-bottom: 1px solid #3a3a5a;
+  padding-bottom: 0.5rem;
+}
+
+.system-name-header {
+  font-size: 0.875rem;
+  color: #4fc3f7;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.celestial-bodies-sidebar .bodies-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.celestial-bodies-sidebar .body-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.celestial-bodies-sidebar .body-item:hover {
+  background: rgba(124, 77, 255, 0.1);
+  border-color: rgba(124, 77, 255, 0.3);
+}
+
+.celestial-bodies-sidebar .body-item.moon {
+  margin-left: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.celestial-bodies-sidebar .body-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  min-width: 28px;
+  text-align: center;
+}
+
+.celestial-bodies-sidebar .body-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.celestial-bodies-sidebar .body-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.celestial-bodies-sidebar .body-type {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.celestial-bodies-sidebar .body-features {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.celestial-bodies-sidebar .feature-badge {
+  font-size: 0.875rem;
+  line-height: 1;
+  opacity: 0.8;
+  cursor: help;
+}
+
+.celestial-bodies-sidebar .body-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+.celestial-bodies-sidebar .slot-count {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.celestial-bodies-sidebar .no-selection,
+.celestial-bodies-sidebar .empty-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+}

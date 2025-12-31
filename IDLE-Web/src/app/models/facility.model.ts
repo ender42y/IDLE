@@ -78,7 +78,10 @@ export enum FacilityId {
   CommsStation = 'comms_station',
   CommsHub = 'comms_hub',
   FinancialCenter = 'financial_center',
-  TourismCenter = 'tourism_center'
+  TourismCenter = 'tourism_center',
+
+  // Temporary Facilities
+  ColonyShip = 'colony_ship'
 }
 
 export interface FacilityProduction {
@@ -1294,5 +1297,21 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       solBonus: 0.1
     },
     populationFloor: 120
+  },
+
+  // === TEMPORARY FACILITIES ===
+  [FacilityId.ColonyShip]: {
+    id: FacilityId.ColonyShip,
+    name: 'Colony Ship',
+    tier: 1,
+    slotType: 'orbital',
+    economy: EconomyType.Trade,
+    description: 'Temporary orbital facility holding colonization supplies until permanent infrastructure is established',
+    baseCost: {
+      credits: 0,
+      resources: []
+    },
+    bonuses: {},
+    populationFloor: 0
   }
 };

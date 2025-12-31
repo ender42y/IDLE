@@ -62,7 +62,7 @@
         <h5>Active Missions</h5>
         @for (mission of activeMissions(); track mission.id) {
         <div class="mission-item">
-          <span class="mission-ship">{{ ships()[mission.shipId]?.name ?? 'Unknown' }}</span>
+          <span class="mission-ship">{{ getMissionShipName(mission) }}</span>
           <span class="mission-status">{{ mission.status }}</span>
           <span class="mission-eta">ETA: {{ formatTime(mission.returnTime) }}</span>
           <button mat-stroked-button
@@ -75,6 +75,103 @@
         </div>
         }
       </div>
+      }
+    </div>
+
+    <!-- Colonization controls -->
+    <div class="colonization-controls">
+      <h4>Colonization</h4>
+      @if (uncolonizedSystems().length > 0 && idleFreighters().length > 0) {
+        <button mat-raised-button
+                color="accent"
+                class="colonize-btn"
+                matTooltip="Send supplies to colonize a discovered system"
+                (click)="toggleColonizationPanel()">
+          <mat-icon>public</mat-icon>
+          {{ showColonizationPanel() ? 'Cancel' : 'Colonize System' }}
+        </button>
+
+        @if (showColonizationPanel()) {
+          <div class="colonization-panel">
+            <div class="colonization-step">
+              <h5>1. Select Freighter</h5>
+              <div class="selection-list">
+                @for (freighter of idleFreighters(); track freighter.id) {
+                  <div class="selection-item"
+                       [class.selected]="selectedFreighterId() === freighter.id"
+                       (click)="selectFreighter(freighter.id)">
+                    <span>{{ freighter.name }}</span>
+                    <span class="location">&#64; {{ getSystemName(freighter.currentSystemId) }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="colonization-step">
+              <h5>2. Select Target System</h5>
+              <div class="selection-list">
+                @for (system of uncolonizedSystems(); track system.id) {
+                  <div class="selection-item"
+                       [class.selected]="selectedTargetSystemId() === system.id"
+                       (click)="selectTargetSystem(system.id)">
+                    <span>{{ system.name }}</span>
+                    <span class="rarity">{{ system.rarity }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (selectedTargetSystemId()) {
+              <div class="colonization-step">
+                <h5>3. Select Body for Initial Starport</h5>
+                <div class="selection-list">
+                  @for (body of targetSystemBodies(); track body.id) {
+                    <div class="selection-item"
+                         [class.selected]="selectedPortBodyId() === body.id"
+                         (click)="selectPortBody(body.id)">
+                      <span>{{ body.name }}</span>
+                      <span class="body-type">{{ getBodyTypeName(body) }}</span>
+                      <span class="orbital-slots">🛰 {{ body.orbitalSlots }} slots</span>
+                    </div>
+                  }
+                  @empty {
+                    <div class="empty-message">No suitable bodies with orbital slots</div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="colonization-step">
+              <h5>Required Supplies</h5>
+              <div class="requirements-list">
+                @for (req of colonizationRequirements; track req.resourceId) {
+                  <div class="requirement-item" [class.sufficient]="getResourceAvailable(req.resourceId) >= req.amount">
+                    <span class="req-name">{{ getResourceName(req.resourceId) }}</span>
+                    <span class="req-amount">{{ req.amount }}t</span>
+                    <span class="req-available">(Have: {{ getResourceAvailable(req.resourceId) | number:'1.0-0' }})</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="colonize-actions">
+              <div class="disabled-reason" *ngIf="getColonizationDisabledReason()">
+                {{ getColonizationDisabledReason() }}
+              </div>
+              <button mat-raised-button
+                      color="primary"
+                      class="send-btn"
+                      [disabled]="!!getColonizationDisabledReason()"
+                      (click)="sendColonizationMission()">
+                Send Colonization Mission
+              </button>
+            </div>
+          </div>
+        }
+      } @else if (uncolonizedSystems().length === 0) {
+        <p class="no-targets">No uncolonized systems discovered</p>
+      } @else {
+        <p class="no-freighters">No freighters available</p>
       }
     </div>
   </div>

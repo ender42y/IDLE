@@ -176,6 +176,16 @@ export interface Ship {
   destinationSystemId?: string;
   departureTime?: number;
   arrivalTime?: number;
+  colonizationTargetBodyId?: string; // Body ID where initial starport should be built
+  colonizationMission?: {
+    originSystemId: string;
+    destinationSystemId: string;
+    starportBodyId?: string;
+    remainingCargo: { resourceId: ResourceId; amount: number }[];
+    deliveredCargo: { resourceId: ResourceId; amount: number }[];
+    tripsCompleted: number;
+    waitingForFuel: boolean;
+  };
 
   // Upgrades
   speedModifier: number; // multiplier
@@ -273,6 +283,12 @@ export function calculateTravelTime(
   ship: Ship
 ): number {
   const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
-  const effectiveSpeed = sizeDefinition.speed * ship.speedModifier;
+  let effectiveSpeed = sizeDefinition.speed * ship.speedModifier;
+
+  // TESTING: speed up freighters 10x to accelerate QA iteration
+
+  effectiveSpeed *= 50;
+  console.log("travel times sped up for testing");
+
   return distance / effectiveSpeed; // hours
 }
