@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
 import { GalaxyGeneratorService } from './galaxy-generator.service';
+import { PrestigeService } from './prestige.service';
 import {
   Ship,
   ShipType,
@@ -11,12 +12,58 @@ import {
 import { ResourceId } from '../models/resource.model';
 import { getDistanceFromHome, getRouteDist, SystemRarity } from '../models/star-system.model';
 
+/**
+ * Manages scout missions that discover and survey new star systems.
+ * Handles mission lifecycle from launch to completion, including automatic
+ * system generation and surveying (GDD v6: scouts auto-survey on discovery).
+ *
+ * Scout Mission Lifecycle:
+ * 1. Launch: Scout departs with fuel reserved for round trip
+ * 2. Outbound: Ship travels to target coordinates
+ * 3. Exploring: Ship scans area, generates new system if found
+ * 4. Auto-Survey: GDD v6 - scouts now survey all bodies automatically upon discovery
+ * 5. Returning: Ship returns to origin with exploration data
+ * 6. Complete: Ship arrives, data integrated, ship becomes Idle
+ *
+ * Mission States:
+ * - outbound: Flying to exploration target
+ * - exploring: At target, scanning and generating system
+ * - returning: Flying back to origin system
+ * - completed: Mission finished, ship can be reassigned
+ *
+ * GDD v6 Changes:
+ * - Scouts now automatically survey ALL bodies upon system discovery
+ * - Removed separate survey step (was manual in v5)
+ * - surveyComplete flag set to true when system generated
+ * - All bodies in discovered system marked surveyed immediately
+ *
+ * Fuel Management:
+ * - Fuel cost calculated for round trip: distance × 2
+ * - Fuel consumed upfront before launch
+ * - If insufficient fuel, mission launch fails
+ * - No mid-mission refueling (different from trade/colonization)
+ *
+ * Discovery Mechanics:
+ * - First non-home discovery boosted (Rare system, +3 bodies)
+ * - Target coordinates calculated from origin + direction + scout range
+ * - Frontier direction algorithm finds least-explored areas
+ * - Can be recalled mid-mission (returns immediately from current position)
+ *
+ * TESTING Values:
+ * - Scout speed multiplied by 20× for faster testing (line 111)
+ * - Production scout speed: 300 ly/h, testing: 6000 ly/h
+ *
+ * @see launchScoutMission for starting new exploration
+ * @see cancelScoutMission for recalling scouts mid-flight
+ * @see getExplorationDirections for suggested exploration vectors
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class ExplorationService {
   private gameState = inject(GameStateService);
   private galaxyGenerator = inject(GalaxyGeneratorService);
+  private prestigeService = inject(PrestigeService);
 
   /**
    * Process exploration missions
@@ -107,8 +154,9 @@ export class ExplorationService {
     this.gameState.removeResourceFromSystem(originSystem.id, ResourceId.Fuel, fuelNeeded);
 
     // Calculate timing based on distance and ship speed
-    // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min //add multiplier for testing
-    const scoutSpeed = ((ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1)) *10;
+    // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min
+    const prestigeSpeedModifier = this.prestigeService.getShipSpeedModifier();
+    const scoutSpeed = ((ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1) * prestigeSpeedModifier) * 20; //TESTING - production value: * 1
     const outboundTimeHours = distance / scoutSpeed;
 
     const explorationTimeHours = 1 / 60; // 1 minute to explore
@@ -121,6 +169,7 @@ export class ExplorationService {
     const returnTime = now + (totalTimeHours * 60 * 60 * 1000);
 
     // Create mission (store explorationComplete so we wait while exploring)
+    // GDD v6: Scouts auto-survey upon discovery - surveyComplete starts false
     const mission: ScoutMission = {
       id: this.gameState.generateId(),
       shipId,
@@ -130,7 +179,8 @@ export class ExplorationService {
       estimatedArrival: outboundArrival,
       explorationComplete: explorationComplete,
       returnTime,
-      status: 'outbound'
+      status: 'outbound',
+      surveyComplete: false
     };
 
     this.gameState.addScoutMission(mission);
@@ -203,54 +253,7 @@ export class ExplorationService {
     return true;
   }
 
-  /**
-   * Start surveying a discovered system
-   */
-  startSurvey(systemId: string, shipId: string): boolean {
-    const state = this.gameState.getState();
-    const system = state.systems[systemId];
-    const ship = state.ships[shipId];
-
-    if (!system || !system.discovered || system.surveyed) {
-      return false;
-    }
-
-    if (!ship || ship.type !== ShipType.Scout || ship.status !== ShipStatus.Idle) {
-      this.gameState.addNotification({
-        type: 'warning',
-        title: 'Ship Unavailable',
-        message: 'Need an idle scout ship to survey.'
-      });
-      return false;
-    }
-
-    // Survey time based on body count
-    const surveyTimeHours = system.bodyIds.length * 2; // 2 hours per body
-
-    const now = Date.now();
-    const completionTime = now + (surveyTimeHours * 60 * 60 * 1000);
-
-    // Update system
-    this.gameState.updateSystem(systemId, {
-      surveyProgress: 0
-    });
-
-    // Update ship
-    this.gameState.updateShip(shipId, {
-      status: ShipStatus.Surveying,
-      currentSystemId: systemId,
-      departureTime: now,
-      arrivalTime: completionTime
-    });
-
-    this.gameState.addNotification({
-      type: 'info',
-      title: 'Survey Started',
-      message: `${ship.name} is surveying ${system.name}. ETA: ${this.formatHours(surveyTimeHours)}`
-    });
-
-    return true;
-  }
+  // GDD v6: startSurvey() removed - scouts now auto-survey upon discovery
 
   /**
    * Update mission status
@@ -299,9 +302,11 @@ export class ExplorationService {
             }
 
             // Set mission to returning and record discovered system
+            // GDD v6: Mark surveyComplete since scouts auto-survey
             this.gameState.updateScoutMission(mission.id, {
               status: 'returning',
-              discoveredSystemId: newSystem.id
+              discoveredSystemId: newSystem.id,
+              surveyComplete: true
             });
 
             // Update ship arrival based on existing mission.returnTime

@@ -64,7 +64,6 @@ export class SystemViewComponent {
   readonly systemResources = computed(() => {
     const system = this.selectedSystem();
     if (!system) return [];
-
     // Get consumption summary (per hour) from population service
     const consumptionSummary = this.populationService.getConsumptionSummary(system.id)
       .reduce((acc, cur) => {
@@ -72,21 +71,51 @@ export class SystemViewComponent {
         return acc;
       }, {} as Record<string, number>);
 
-    return system.resources
-      .filter(r => r.amount > 0)
-      .map(r => {
-        const rate = this.productionService.getNetProductionRate(system.id, r.resourceId);
-        const consumption = consumptionSummary[r.resourceId] ?? 0;
-        const overdraw = consumption > rate; // consumption higher than production
-        return {
-          ...r,
-          name: RESOURCE_DEFINITIONS[r.resourceId]?.name ?? r.resourceId,
-          rate,
-          consumption,
-          overdraw
-        };
-      })
-      .sort((a, b) => (RESOURCE_DEFINITIONS[a.resourceId]?.tier ?? 0) - (RESOURCE_DEFINITIONS[b.resourceId]?.tier ?? 0));
+    // Collect resource IDs to show: present in storage, consumed, produced, or used as inputs/outputs by facilities
+    const resourceIds = new Set<string>();
+
+    // Add resources that exist in storage
+    for (const r of system.resources) resourceIds.add(r.resourceId);
+
+    // Add resources referenced by facilities in the system (production/conversion)
+    const state = this.gameState.getState();
+    const bodies = system.bodyIds.map(id => state.bodies[id]).filter(Boolean);
+    const facilityIds = bodies.flatMap(b => b.facilityIds);
+    for (const fid of facilityIds) {
+      const facility = state.facilities[fid];
+      if (!facility) continue;
+      const def = FACILITY_DEFINITIONS[facility.definitionId];
+      if (!def) continue;
+      if (def.production) resourceIds.add(def.production.output);
+      if (def.conversion) {
+        resourceIds.add(def.conversion.output);
+        for (const inp of def.conversion.inputs) resourceIds.add(inp.resourceId);
+      }
+    }
+
+    // Add consumption resources
+    for (const rid of Object.keys(consumptionSummary)) resourceIds.add(rid);
+
+    // Build resource list using the collected ids (show zero amounts too)
+    const results = Array.from(resourceIds).map(resourceId => {
+      const stock = system.resources.find(r => r.resourceId === resourceId);
+      const amount = stock?.amount ?? 0;
+      const capacity = stock?.capacity ?? 0;
+      const rate = this.productionService.getNetProductionRate(system.id, resourceId as ResourceId);
+      const consumption = consumptionSummary[resourceId] ?? 0;
+      const overdraw = consumption > rate;
+      return {
+        resourceId,
+        amount,
+        capacity,
+        name: RESOURCE_DEFINITIONS[resourceId as ResourceId]?.name ?? resourceId,
+        rate,
+        consumption,
+        overdraw
+      };
+    });
+
+    return results.sort((a, b) => (RESOURCE_DEFINITIONS[a.resourceId as ResourceId]?.tier ?? 0) - (RESOURCE_DEFINITIONS[b.resourceId as ResourceId]?.tier ?? 0));
   });
 
   readonly bodyFacilities = computed(() => {

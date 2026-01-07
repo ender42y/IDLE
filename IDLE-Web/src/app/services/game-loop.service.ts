@@ -6,6 +6,58 @@ import { TradeService } from './trade.service';
 import { ExplorationService } from './exploration.service';
 import { ColonizationService } from './colonization.service';
 
+/**
+ * Orchestrates the main game simulation loop.
+ * Runs all subsystems (production, population, trade, exploration, colonization)
+ * at regular intervals and handles offline progress calculation.
+ *
+ * Game Loop Architecture:
+ * - Tick-based simulation running at configurable rate (default: 200ms = 5 ticks/second)
+ * - Each tick processes deltaTime since last tick
+ * - All systems receive same deltaTime for consistency
+ * - Performance tracking (TPS = ticks per second)
+ *
+ * Subsystem Processing Order:
+ * 1. Production: Facilities consume inputs, produce outputs
+ * 2. Population: Consume resources, calculate growth/decline
+ * 3. Trade: Process active trips, start new ones
+ * 4. Exploration: Update scout missions
+ * 5. Colonization: Progress multi-trip colonization missions
+ *
+ * Time Conversion:
+ * - Tick interval: Milliseconds between ticks (default 200ms)
+ * - deltaTime: Milliseconds since last tick (converted to hours for production/population)
+ * - Production rates: All expressed in tonnes/hour (t/h)
+ * - Conversion: deltaHours = deltaMs / (1000 × 60 × 60)
+ *
+ * Offline Progress:
+ * - On start(), calculates time elapsed since lastPlayedAt
+ * - Processes production/population in chunks (6-minute chunks = 0.1 hour)
+ * - Completes any trade/scout missions that finished during offline time
+ * - Shows notification summarizing offline progress
+ * - Only processes if offline > 1 minute (prevents spamming on quick reload)
+ *
+ * Auto-Save:
+ * - Separate interval from tick (default: 60 seconds)
+ * - Saves to localStorage via GameStateService
+ * - Can be disabled by setting autoSaveInterval to 0
+ *
+ * Performance Monitoring:
+ * - Tracks actual TPS (ticks per second achieved)
+ * - tickCount: Total ticks processed since start
+ * - tickTimes: Recent tick timestamps for TPS calculation
+ * - Updated every 1 second
+ *
+ * Lifecycle:
+ * - start(): Begin game loop and auto-save timer
+ * - stop(): Halt game loop and auto-save timer
+ * - toggle(): Pause/resume (useful for UI control)
+ * - ngOnDestroy(): Cleanup intervals when service destroyed
+ *
+ * @see tick for main loop execution
+ * @see calculateOfflineProgress for offline time processing
+ * @see GameStateService.settings for tick rate and auto-save configuration
+ */
 @Injectable({
   providedIn: 'root'
 })

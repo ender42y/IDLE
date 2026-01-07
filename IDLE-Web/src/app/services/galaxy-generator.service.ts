@@ -16,6 +16,36 @@ import {
 } from '../models/celestial-body.model';
 import { ResourceId } from '../models/resource.model';
 
+/**
+ * GDD v6 Section 23.2: Xeno-Science distance thresholds (in light-years)
+ */
+const XENO_DISTANCE_THRESHOLDS = {
+  NO_XENO: 100,           // 0-100 ly: No xeno discoveries
+  VERY_RARE: 150,         // 100-150 ly: Very rare chance
+  LOW_CHANCE: 200         // 150-200 ly: Low chance, 200+: Standard rates
+};
+
+/**
+ * Xeno discovery probabilities by distance band
+ */
+const XENO_DISCOVERY_CHANCES = {
+  VERY_RARE: {
+    xenoDeposits: 0.02,   // 2% chance per body
+    alienArtifact: 0.005, // 0.5% chance per body
+    anomalousSystem: 0.01 // 1% chance for system
+  },
+  LOW_CHANCE: {
+    xenoDeposits: 0.08,   // 8% chance per body
+    alienArtifact: 0.02,  // 2% chance per body
+    anomalousSystem: 0.03 // 3% chance for system
+  },
+  STANDARD: {
+    xenoDeposits: 0.15,   // 15% chance per body
+    alienArtifact: 0.05,  // 5% chance per body
+    anomalousSystem: 0.08 // 8% chance for system
+  }
+};
+
 // System naming themes
 const GREEK_LETTERS = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'];
 const CONSTELLATIONS = [
@@ -59,6 +89,14 @@ export class GalaxyGeneratorService {
     // Generate name
     const name = this.generateSystemName();
 
+    // GDD v6 Section 23: Calculate distance for xeno-science gating
+    const distanceFromSol = getDistanceFromHome(coordinates);
+    const xenoChances = this.getXenoChances(distanceFromSol);
+
+    // Check for anomalous system (GDD v6 Section 23.3)
+    const isAnomalous = xenoChances !== null && Math.random() < xenoChances.anomalousSystem;
+    const hasXenoDiscovery = isAnomalous; // Will be updated if bodies have xeno features
+
     // Create system
     const systemId = this.gameState.generateId();
     const system: StarSystem = {
@@ -80,11 +118,23 @@ export class GalaxyGeneratorService {
       storageCapacity: 10000,
       hasTradeStation: false,
       tradeStationTier: 0,
-      colonized: false
+      colonized: false,
+      // GDD v6: Xeno-science properties
+      anomalous: isAnomalous,
+      hasXenoDiscovery: hasXenoDiscovery
     };
 
-    // Generate bodies
-    const bodies = this.generateBodies(systemId, name, bodyCount, rarity);
+    // Generate bodies (pass distance for xeno feature generation)
+    const bodies = this.generateBodies(systemId, name, bodyCount, rarity, distanceFromSol);
+
+    // Check if any body has xeno features
+    const hasXenoFeatures = bodies.some(b =>
+      b.features.includes(BodyFeature.XenoDeposits) ||
+      b.features.includes(BodyFeature.AlienArtifact)
+    );
+    if (hasXenoFeatures) {
+      system.hasXenoDiscovery = true;
+    }
 
     // Add bodies to game state
     for (const body of bodies) {
@@ -94,6 +144,21 @@ export class GalaxyGeneratorService {
     system.bodyIds = bodies.map(b => b.id);
 
     return system;
+  }
+
+  /**
+   * GDD v6 Section 23.2: Get xeno discovery chances based on distance
+   */
+  private getXenoChances(distanceFromSol: number): typeof XENO_DISCOVERY_CHANCES.STANDARD | null {
+    if (distanceFromSol < XENO_DISTANCE_THRESHOLDS.NO_XENO) {
+      return null; // No xeno discoveries within 100 ly
+    } else if (distanceFromSol < XENO_DISTANCE_THRESHOLDS.VERY_RARE) {
+      return XENO_DISCOVERY_CHANCES.VERY_RARE;
+    } else if (distanceFromSol < XENO_DISTANCE_THRESHOLDS.LOW_CHANCE) {
+      return XENO_DISCOVERY_CHANCES.LOW_CHANCE;
+    } else {
+      return XENO_DISCOVERY_CHANCES.STANDARD;
+    }
   }
 
   /**
@@ -120,7 +185,8 @@ export class GalaxyGeneratorService {
     systemId: string,
     systemName: string,
     count: number,
-    rarity: SystemRarity
+    rarity: SystemRarity,
+    distanceFromSol: number = 0
   ): CelestialBody[] {
     const bodies: CelestialBody[] = [];
 
@@ -149,6 +215,11 @@ export class GalaxyGeneratorService {
     const rarityDef = SYSTEM_RARITY_DEFINITIONS[rarity];
 
     for (let i = 0; i < remainingCount; i++) {
+      // Enforce hard cap of 20 total bodies including moons
+      if (bodies.length >= 20) {
+        break;
+      }
+
       const bodyType = this.rollBodyType(rarity, i, remainingCount);
 
       // Skip moons for direct generation - they come with gas giants
@@ -156,7 +227,7 @@ export class GalaxyGeneratorService {
         continue;
       }
 
-      const body = this.generateBody(systemId, systemName, planetIndex, bodyType, rarity);
+      const body = this.generateBody(systemId, systemName, planetIndex, bodyType, rarity, distanceFromSol);
       bodies.push(body);
       planetIndex++;
 
@@ -166,6 +237,11 @@ export class GalaxyGeneratorService {
         const moonLetters = ['a', 'b', 'c', 'd'];
 
         for (let m = 0; m < moonCount; m++) {
+          // Enforce hard cap of 20 total bodies
+          if (bodies.length >= 20) {
+            break;
+          }
+
           const moonType = Math.random() < 0.6 ? BodyType.IcyMoon : BodyType.Moon;
           const moon = this.generateBody(
             systemId,
@@ -173,6 +249,7 @@ export class GalaxyGeneratorService {
             planetIndex - 1,
             moonType,
             rarity,
+            distanceFromSol,
             body.id,
             moonLetters[m]
           );
@@ -193,6 +270,7 @@ export class GalaxyGeneratorService {
     index: number,
     type: BodyType,
     rarity: SystemRarity,
+    distanceFromSol: number = 0,
     parentId?: string,
     moonLetter?: string
   ): CelestialBody {
@@ -206,8 +284,8 @@ export class GalaxyGeneratorService {
     // Generate slots
     const surfaceSlots = this.randomRange(typeDef.surfaceSlots.min, typeDef.surfaceSlots.max);
 
-    // Generate features
-    const features = this.generateFeatures(type, rarity);
+    // Generate features (including distance-gated xeno features)
+    const features = this.generateFeatures(type, rarity, distanceFromSol);
 
     // Calculate population ceiling
     let popCeiling = typeDef.canHavePopulation
@@ -270,8 +348,9 @@ export class GalaxyGeneratorService {
 
   /**
    * Generate features for a body
+   * GDD v6 Section 23.2: Xeno features are distance-gated
    */
-  private generateFeatures(type: BodyType, rarity: SystemRarity): BodyFeature[] {
+  private generateFeatures(type: BodyType, rarity: SystemRarity, distanceFromSol: number = 0): BodyFeature[] {
     const features: BodyFeature[] = [];
     const rarityMultiplier = {
       [SystemRarity.Common]: 0.8,
@@ -281,9 +360,28 @@ export class GalaxyGeneratorService {
       [SystemRarity.Legendary]: 2.0
     }[rarity];
 
+    // Get xeno chances based on distance
+    const xenoChances = this.getXenoChances(distanceFromSol);
+
     for (const [featureId, def] of Object.entries(FEATURE_DEFINITIONS)) {
       if (!def.validBodyTypes.includes(type)) continue;
 
+      // GDD v6: Handle xeno features separately with distance-based chances
+      if (featureId === BodyFeature.XenoDeposits) {
+        if (xenoChances && Math.random() < xenoChances.xenoDeposits * rarityMultiplier) {
+          features.push(BodyFeature.XenoDeposits);
+        }
+        continue;
+      }
+
+      if (featureId === BodyFeature.AlienArtifact) {
+        if (xenoChances && Math.random() < xenoChances.alienArtifact * rarityMultiplier) {
+          features.push(BodyFeature.AlienArtifact);
+        }
+        continue;
+      }
+
+      // Regular features use their defined rarity
       if (Math.random() < def.rarity * rarityMultiplier) {
         features.push(featureId as BodyFeature);
       }

@@ -1,10 +1,29 @@
-// Facility definitions for I.D.L.E.
+/**
+ * Facility definitions for I.D.L.E.
+ * Defines facility types, production chains, resource conversion,
+ * construction costs, and population requirements.
+ */
 
 import { ResourceId } from './resource.model';
 
+/**
+ * Facility tier (1-5) represents tech level progression.
+ * Tier 1: Extraction, Tier 2: Refining, Tier 3: Processing, Tier 4: Advanced, Tier 5: High-Tech
+ */
 export type FacilityTier = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Type of slot where a facility can be built.
+ * Surface: Requires surface slots on planets/moons
+ * Orbital: Requires orbital slots around any body
+ * Stellar: Requires stellar slots around stars
+ */
 export type SlotType = 'surface' | 'orbital' | 'stellar';
 
+/**
+ * Economic category that facilities belong to.
+ * Used for applying feature bonuses and organizing facilities.
+ */
 export enum EconomyType {
   Agriculture = 'agriculture',
   Mining = 'mining',
@@ -19,6 +38,10 @@ export enum EconomyType {
   Trade = 'trade'
 }
 
+/**
+ * Enum containing all facility IDs in the game.
+ * Organized by tier and economic function.
+ */
 export enum FacilityId {
   // Tier 1: Extraction
   Mine = 'mine',
@@ -84,11 +107,19 @@ export enum FacilityId {
   ColonyShip = 'colony_ship'
 }
 
+/**
+ * Production configuration for extraction facilities (Tier 1).
+ * These facilities generate raw resources from celestial bodies.
+ */
 export interface FacilityProduction {
   output: ResourceId;
-  baseRate: number; // t/h
+  baseRate: number; // tonnes per hour
 }
 
+/**
+ * Conversion configuration for refining/processing facilities (Tier 2+).
+ * These facilities consume input resources to produce output resources.
+ */
 export interface FacilityConversion {
   inputs: { resourceId: ResourceId; amount: number }[];
   output: ResourceId;
@@ -96,6 +127,11 @@ export interface FacilityConversion {
   efficiency: number; // 0-1
 }
 
+/**
+ * Definition interface for facility types.
+ * Contains all static properties including costs, production/conversion,
+ * bonuses, and population requirements.
+ */
 export interface FacilityDefinition {
   id: FacilityId;
   name: string;
@@ -123,23 +159,39 @@ export interface FacilityDefinition {
     commsReliability?: number;
     creditBonus?: number;
     solBonus?: number; // Standard of Living
+    // GDD v6 Section 15.7: Communications trade bonuses (apply when both endpoints have comms)
+    commsTravelTimeReduction?: number;  // Percentage reduction in travel time
+    commsFuelReduction?: number;        // Percentage reduction in fuel cost
+    commsReliabilityBonus?: number;     // Percentage increase in reliability
   };
 
-  // Population floor contribution
+  // Population floor contribution (minimum workers needed)
   populationFloor: number;
+
+  // Population ceiling contribution (GDD v6 Section 10.3)
+  // Multiplied by body type multiplier for final ceiling
+  populationCeiling: number;
 }
 
+/**
+ * Runtime instance of a facility in the game state.
+ * Represents an actual built facility with current condition and operational status.
+ */
 export interface Facility {
-  id: string; // unique instance id
-  definitionId: FacilityId;
-  bodyId: string;
-  level: number;
-  condition: number; // 0-100%
-  operational: boolean;
-  constructionProgress?: number; // 0-100 during building
+  id: string; // Unique instance ID
+  definitionId: FacilityId; // Type of facility from FacilityDefinition
+  bodyId: string; // Celestial body where this facility is located
+  level: number; // Upgrade level (for future use)
+  condition: number; // 0-100% representing wear and tear
+  operational: boolean; // Whether facility is producing/functioning
+  constructionProgress?: number; // 0-100 during construction phase
 }
 
-// Facility definitions
+/**
+ * Lookup record for all facility definitions.
+ * Provides O(1) access to facility properties by enum key.
+ * Organized by tier: T1 extraction, T2 refining, T3 processing, T4 advanced, T5 high-tech, support, temporary.
+ */
 export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
   // === TIER 1: EXTRACTION FACILITIES ===
   [FacilityId.Mine]: {
@@ -160,7 +212,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.IronOre,
       baseRate: 100
     },
-    populationFloor: 50
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.HeavyMetalMine]: {
@@ -181,7 +234,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.HeavyMetalOre,
       baseRate: 100
     },
-    populationFloor: 60
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.RareEarthExcavator]: {
@@ -203,7 +257,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.RareEarthOre,
       baseRate: 100
     },
-    populationFloor: 40
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.SilicateQuarry]: {
@@ -223,7 +278,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.Silicates,
       baseRate: 100
     },
-    populationFloor: 30
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.IceHarvester]: {
@@ -244,7 +300,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.Ice,
       baseRate: 100
     },
-    populationFloor: 25
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.GasCollector]: {
@@ -265,7 +322,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.AtmosphericGases,
       baseRate: 100
     },
-    populationFloor: 35
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.ExoticGasCollector]: {
@@ -287,7 +345,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.ExoticGases,
       baseRate: 100
     },
-    populationFloor: 30
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.HydrocarbonExtractor]: {
@@ -308,7 +367,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.Hydrocarbons,
       baseRate: 100
     },
-    populationFloor: 40
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.Farm]: {
@@ -329,7 +389,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.Organics,
       baseRate: 100
     },
-    populationFloor: 100
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   [FacilityId.Ranch]: {
@@ -350,7 +411,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       output: ResourceId.Livestock,
       baseRate: 80
     },
-    populationFloor: 80
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: T1 ceiling
   },
 
   // === TIER 2: REFINING FACILITIES ===
@@ -374,7 +436,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.5
     },
-    populationFloor: 75
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.HeavyMetalRefinery]: {
@@ -397,7 +460,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.4
     },
-    populationFloor: 60
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.RareEarthProcessor]: {
@@ -421,7 +485,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.3
     },
-    populationFloor: 50
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.GlassWorks]: {
@@ -443,7 +508,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.7
     },
-    populationFloor: 50
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.WaterPurifier]: {
@@ -466,7 +532,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.85
     },
-    populationFloor: 40
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.FuelRefinery]: {
@@ -492,7 +559,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.6
     },
-    populationFloor: 60
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.ExoticCompoundLab]: {
@@ -516,7 +584,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.35
     },
-    populationFloor: 30
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.ChemicalPlant]: {
@@ -542,7 +611,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.65
     },
-    populationFloor: 55
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.FoodProcessor]: {
@@ -565,7 +635,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.7
     },
-    populationFloor: 60
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   [FacilityId.MeatPackingPlant]: {
@@ -588,7 +659,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 200,
       efficiency: 0.5
     },
-    populationFloor: 50
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: T2 ceiling
   },
 
   // === TIER 3: PROCESSING FACILITIES ===
@@ -615,7 +687,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.8
     },
-    populationFloor: 80
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.AlloyFoundry]: {
@@ -642,7 +715,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.75
     },
-    populationFloor: 70
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.PolymerPlant]: {
@@ -665,7 +739,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.7
     },
-    populationFloor: 55
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.FoodKitchen]: {
@@ -691,7 +766,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.85
     },
-    populationFloor: 70
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.QualityFoodsFacility]: {
@@ -717,7 +793,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.75
     },
-    populationFloor: 60
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.GourmetKitchen]: {
@@ -744,7 +821,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.4
     },
-    populationFloor: 40
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.ConsumerFactory]: {
@@ -770,7 +848,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.8
     },
-    populationFloor: 80
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   [FacilityId.MedicalLab]: {
@@ -797,7 +876,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 160,
       efficiency: 0.6
     },
-    populationFloor: 45
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: T3 ceiling
   },
 
   // === TIER 4: ADVANCED FACILITIES ===
@@ -825,7 +905,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.7
     },
-    populationFloor: 90
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.ElectronicsFab]: {
@@ -853,7 +934,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.5
     },
-    populationFloor: 60
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.Shipyard]: {
@@ -882,7 +964,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.6
     },
-    populationFloor: 100
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.ArmsManufacturer]: {
@@ -910,7 +993,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.55
     },
-    populationFloor: 70
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.ComfortGoodsFactory]: {
@@ -937,7 +1021,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.65
     },
-    populationFloor: 75
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.PharmaceuticalPlant]: {
@@ -964,7 +1049,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.5
     },
-    populationFloor: 50
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   [FacilityId.AiLaboratory]: {
@@ -992,7 +1078,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 80,
       efficiency: 0.35
     },
-    populationFloor: 40
+    populationFloor: 150,
+    populationCeiling: 10000 // GDD v6: T4 ceiling
   },
 
   // === TIER 5: HIGH-TECH FACILITIES ===
@@ -1022,7 +1109,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 20,
       efficiency: 0.4
     },
-    populationFloor: 30
+    populationFloor: 250,
+    populationCeiling: 20000 // GDD v6: T5 ceiling
   },
 
   [FacilityId.QuantumLab]: {
@@ -1051,7 +1139,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 20,
       efficiency: 0.25
     },
-    populationFloor: 25
+    populationFloor: 250,
+    populationCeiling: 20000 // GDD v6: T5 ceiling
   },
 
   [FacilityId.SyntheticMindForge]: {
@@ -1081,7 +1170,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       throughput: 20,
       efficiency: 0.2
     },
-    populationFloor: 20
+    populationFloor: 250,
+    populationCeiling: 20000 // GDD v6: T5 ceiling
   },
 
   // === SUPPORT FACILITIES ===
@@ -1102,7 +1192,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       tradeCapacity: 1
     },
-    populationFloor: 50
+    populationFloor: 25,
+    populationCeiling: 1000 // GDD v6: Support facility values
   },
 
   [FacilityId.TradeStation]: {
@@ -1123,7 +1214,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       tradeCapacity: 2
     },
-    populationFloor: 100
+    populationFloor: 75,
+    populationCeiling: 3000 // GDD v6: Support facility values
   },
 
   [FacilityId.TradeHub]: {
@@ -1145,7 +1237,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       tradeCapacity: 3
     },
-    populationFloor: 200
+    populationFloor: 150,
+    populationCeiling: 8000 // GDD v6: Support facility values
   },
 
   [FacilityId.ResearchCenter]: {
@@ -1166,7 +1259,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       techLevel: 1
     },
-    populationFloor: 80
+    populationFloor: 100,
+    populationCeiling: 5000 // GDD v6: Support facility values
   },
 
   [FacilityId.SecurityStation]: {
@@ -1187,7 +1281,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       securityLevel: 1
     },
-    populationFloor: 60
+    populationFloor: 50,
+    populationCeiling: 2000 // GDD v6: Support facility values
   },
 
   [FacilityId.CommsOutpost]: {
@@ -1206,9 +1301,14 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     },
     bonuses: {
       commsRange: 10,
-      commsReliability: 0.05
+      commsReliability: 0.05,
+      // GDD v6 Section 15.7: Comms Outpost -5% travel, -5% fuel, +5% reliability
+      commsTravelTimeReduction: 0.05,
+      commsFuelReduction: 0.05,
+      commsReliabilityBonus: 0.05
     },
-    populationFloor: 20
+    populationFloor: 25,
+    populationCeiling: 500 // GDD v6: Support facility values
   },
 
   [FacilityId.CommsStation]: {
@@ -1228,9 +1328,14 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     },
     bonuses: {
       commsRange: 20,
-      commsReliability: 0.1
+      commsReliability: 0.1,
+      // GDD v6 Section 15.7: Comms Station -10% travel, -10% fuel, +10% reliability
+      commsTravelTimeReduction: 0.10,
+      commsFuelReduction: 0.10,
+      commsReliabilityBonus: 0.10
     },
-    populationFloor: 40
+    populationFloor: 50,
+    populationCeiling: 1500 // GDD v6: Support facility values
   },
 
   [FacilityId.CommsHub]: {
@@ -1251,9 +1356,14 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     },
     bonuses: {
       commsRange: 30,
-      commsReliability: 0.15
+      commsReliability: 0.15,
+      // GDD v6 Section 15.7: Comms Hub -15% travel, -15% fuel, +15% reliability
+      commsTravelTimeReduction: 0.15,
+      commsFuelReduction: 0.15,
+      commsReliabilityBonus: 0.15
     },
-    populationFloor: 60
+    populationFloor: 75,
+    populationCeiling: 3000 // GDD v6: Support facility values
   },
 
   [FacilityId.FinancialCenter]: {
@@ -1275,7 +1385,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
     bonuses: {
       creditBonus: 0.05
     },
-    populationFloor: 100
+    populationFloor: 75,
+    populationCeiling: 4000 // GDD v6: Support facility values
   },
 
   [FacilityId.TourismCenter]: {
@@ -1296,7 +1407,8 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       creditBonus: 0.02,
       solBonus: 0.1
     },
-    populationFloor: 120
+    populationFloor: 100,
+    populationCeiling: 6000 // GDD v6: Support facility values
   },
 
   // === TEMPORARY FACILITIES ===
@@ -1312,6 +1424,7 @@ export const FACILITY_DEFINITIONS: Record<FacilityId, FacilityDefinition> = {
       resources: []
     },
     bonuses: {},
-    populationFloor: 0
+    populationFloor: 0,
+    populationCeiling: 0 // Temporary facility, no population
   }
 };

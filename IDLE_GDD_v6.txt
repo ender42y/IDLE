@@ -1,0 +1,636 @@
+Interstellar Development & Logistics Enterprise
+An Idle Space Colonization Game
+GAME DESIGN DOCUMENT
+Version 6.0 - MVP Specification
+Status: In Development
+ 
+1. Executive Summary
+I.D.L.E. (Interstellar Development & Logistics Enterprise) is an idle/incremental game where players build and manage a growing interstellar civilization. Starting from a single colonized home system, players construct facilities, gather resources, manage populations, and send out scouting missions to discover and expand into new star systems.
+1.1 Core Pillars
+•	Strategic Expansion: Discover and colonize systems with limited construction slots
+•	Economic Depth: 12 economy types with layered bonuses and specialization
+•	Logistics Gameplay: Manage trade fleets, fuel supplies, and shipping routes
+•	Living Systems: Populations grow and decline; system states create dynamic challenges
+•	Idle Progression: Rewarding gameplay for both active sessions and passive accumulation
+1.2 Core Gameplay Loop
+1.	Scout: Send scouts to discover and survey new systems at the frontier
+2.	Colonize: Establish presence via supply runs, build initial Trade Outpost
+3.	Develop: Construct facilities, grow population, optimize production
+4.	Trade: Connect systems via trade routes or sell on galactic market
+5.	Expand: Use accumulated resources to push the frontier further
+ 
+2. New Player Experience & Home System
+2.1 Home System Overview
+All players begin in the same fixed home system ("Sol") located at coordinates (0,0). The system provides a balanced starting point with access to most basic resources while encouraging expansion for rare materials.
+2.2 Home System Layout
+Sol (Star)
+•	Type: G-type yellow dwarf
+•	Stellar Orbital Slots: 2 (system has 7 bodies)
+•	Starting Facilities: None (reserved for Starport, future feature)
+Sol 1 - Rocky Planet
+•	Type: Terrestrial | Orbital: 2 | Surface: 3
+•	Features: None (basic rocky world)
+•	Starting Facilities: Silicate Quarry (surface), Glass Works (orbital)
+•	Production Chain: Silicates → Glass/Ceramics
+Sol 2 - Metal-Rich Planet
+•	Type: Terrestrial | Orbital: 2 | Surface: 4
+•	Features: High Metal Content (+25% mining output)
+•	Starting Facilities: Mine (surface), Smelter (orbital)
+•	Production Chain: Iron Ore → Steel
+Sol 3 - Earth-like Planet
+•	Type: Earth-like | Orbital: 3 | Surface: 5
+•	Features: Fertile Soil (+25% agriculture), Habitable, Optimal Conditions
+•	Starting Facilities: Farm (surface), Food Processor (surface), Food Kitchen (surface)
+•	Production Chain: Organics → Grain/Produce → Prepared Foods
+•	Population Bonus: Maximum multiplier to ceiling (best in game)
+Sol 3-a - Rocky Moon
+•	Type: Moon | Orbital: 1 | Surface: 2
+•	Features: None
+•	Starting Facilities: None — player's first expansion choice
+Sol 4 - Gas Giant
+•	Type: Gas Giant | Orbital: 3 | Surface: 0
+•	Features: Standard Atmosphere
+•	Starting Facilities: Gas Collector (orbital), Hydrocarbon Extractor (orbital), Fuel Refinery (orbital)
+•	Production Chain: Atmo Gases + Hydrocarbons → Fuel
+Sol 4-a - Icy Moon
+•	Type: Moon (Icy) | Orbital: 1 | Surface: 2
+•	Features: Ice Deposits
+•	Starting Facilities: Ice Harvester (surface), Water Purifier (orbital)
+•	Production Chain: Ice → Purified Water
+Sol 4-b - Icy Moon
+•	Type: Moon (Icy) | Orbital: 1 | Surface: 1
+•	Features: Ice Deposits
+•	Starting Facilities: None — backup ice source
+2.3 Starting Production Summary
+Sol begins with complete T1→T2 chains for essential resources:
+•	Steel: Mine → Smelter
+•	Glass/Ceramics: Silicate Quarry → Glass Works
+•	Purified Water: Ice Harvester → Water Purifier
+•	Prepared Foods: Farm → Food Processor → Food Kitchen
+•	Fuel: Gas Collector + Hydrocarbon Extractor → Fuel Refinery
+Player must build to progress:
+•	Chemical Plant (Industrial Chemicals → Polymers pathway)
+•	Construction Yard (Structural Materials)
+•	Heavy Metal chain (requires expansion to find Heavy Metal deposits)
+•	Rare Earth chain (requires expansion to find Rare Earth deposits)
+2.4 Starting Infrastructure
+•	Trade Station (Tier 2) orbiting Sol 3
+•	1 Scout Ship (Tier 1, basic)
+•	1 Light Freighter (Tier 1, basic)
+2.5 Starting Resources
+Resource	Amount	Purpose
+Credits	10,000	Initial purchases
+Steel	500 t	Construction
+Glass/Ceramics	200 t	Construction
+Purified Water	300 t	Life support
+Fuel	200 t	Ship operations
+Prepared Foods	200 t	Population
+Basic Goods	100 t	Population SoL
+Components	50 t	Early upgrades
+ 
+3. Galaxy Generation & Navigation
+3.1 Coordinate System
+•	2D coordinate plane with home system at origin (0, 0)
+•	Distance measured in light-years (ly)
+•	Systems placed as discovered, creating expanding "bubble"
+3.2 Expansion Pattern
+•	First discovery ~5ly from home in random direction
+•	New systems placed "outward" from launch point relative to home
+•	Creates roughly circular expansion (lopsided based on player choices)
+•	Void filling: System tracks density, biases discoveries toward gaps
+3.3 Distance Calculations
+•	Distance from home: √(x² + y²) — used for cost scaling
+•	Route distance: √((x2-x1)² + (y2-y1)²) — used for trade routes
+ 
+4. Star Systems & Bodies
+4.1 System Rarity Tiers
+Tier	Chance	Bodies	Characteristics
+Common	50%	1-3	Low resources, basic minerals only
+Uncommon	30%	3-5	Moderate resources, some rare minerals
+Rare	15%	5-8	Rich resources, exotic materials possible
+Exceptional	4%	8-12	Abundant resources, unique features
+Legendary	1%	10-15+	Pristine, rare phenomena
+4.2 Celestial Body Types
+Body Type	Orbital	Surface	Notes
+Star	1-2*	0	*1 slot if ≤5 bodies, 2 if >5 bodies
+Moon	1	0-3	Small, limited but useful
+Moon (Icy)	1	1-2	Ice deposits, water source
+Terrestrial Planet	2	1-5	Standard colonization target
+Terraformable Planet	3	3-6	Can become habitable, good pop ceiling
+Earth-like Planet	3	4-6	Already habitable, best pop ceiling, very rare
+Gas Giant	3	0	Orbital only, gas harvesting
+Stellar Orbital Slots: Reserved for Starport and unique system-wide buildings. Slot count scales with system size.
+4.3 Body Features
+Feature	Bonus	Valid Bodies
+High Metal Content	+25% mining output	Rocky bodies
+Fertile Soil	+25% agriculture	Terraformable
+Rare Element Deposits	Access to Rare Earth Ore	Any rocky (rare)
+Exotic Atmosphere	Access to Exotic Gases	Gas giants (rare)
+Ice Deposits	Access to Ice	Icy moons, comets
+Scenic Vistas	+25% tourism	Any (rare)
+ 
+5. Construction System
+5.1 Slot Types
+•	Surface Slots: Ground-based facilities (mines, farms, factories)
+•	Orbital Slots: Space stations (refineries, shipyards, trade stations)
+•	Stellar Slots: System-wide facilities orbiting the star (Starport, unique buildings)
+Note: Slot limits are hard caps and cannot be expanded through upgrades.
+5.2 Construction Cost Formula
+cost = base_price × (1.03 ^ distance_ly) × (1.06 ^ facility_count)
+Distance	Facilities	Multiplier	Example (100)
+5 ly	5	1.55x	155
+10 ly	10	2.40x	240
+20 ly	20	5.81x	581
+30 ly	40	25x	2,500
+5.3 Construction Process
+Constructions have a base cost equivalent to several hours of play without multipliers. After resources are sourced (from within the system, via trade, or purchased on the galactic market), real-world build time applies. This creates natural pacing for idle gameplay.
+ 
+6. Economy Types
+Economy	Focus	Key Outputs
+Agriculture	Food production, organics, livestock	Food, Organics, Population support
+Mining	Raw material extraction	Ores, Metals, Rare Elements
+Industry	Processing and manufacturing	Refined goods, Components
+Tech	Research and high-tech production	Electronics, AI Cores
+Military	Defense and weapon production	Weapons, Security level
+Finance	Credit generation, trade optimization	Better buy/sell spreads
+Tourism	Entertainment, luxury experiences	Credits, SoL boost
+Medical	Healthcare, biotech	Pop growth, Outbreak resist
+Communications	Data networks, coordination	Trade route bonuses
+Xeno-Sciences	Late-game alien tech	Quantum Materials
+Trade	Commerce hub, market access	Trade routes, storage
+Energy: Abstracted. Facilities include 100-year reactor as part of construction.
+ 
+7. Resource System
+7.1 Core Principles
+•	System-Local: All resources (except Credits) exist only where produced
+•	Physical Transport: Moving resources requires trade routes with ships
+•	Units: All materials in tonnes (t), rates in tonnes/hour (t/h)
+7.2 Tier 1: Raw Resources
+Iron Ore, Heavy Metal Ore, Rare Earth Ore, Silicates, Ice, Atmospheric Gases, Exotic Gases, Hydrocarbons, Organics, Livestock
+7.3 Tier 2: Refined Resources
+Steel, Heavy Metals, Rare Earths, Glass/Ceramics, Purified Water, Fuel, Exotic Compounds, Industrial Chemicals, Grain/Produce, Meat/Animal Products
+7.4 Tier 3: Processed Resources
+Structural Materials, Alloys, Polymers, Prepared Foods, Quality Foods, Gourmet Foods, Basic Goods, Medical Supplies
+7.5 Tier 4: Advanced Resources
+Components, Electronics, Ship Parts, Weapons, Comfort Goods, Pharmaceuticals, AI Cores
+7.6 Tier 5: High-Tech Resources
+Luxury Goods, Quantum Materials, Xeno-Compounds, Synthetic Minds
+ 
+8. Production & Processing
+8.1 Pull-Based Production
+•	Downstream facilities "pull" inputs from upstream production
+•	Excess production flows to storage automatically
+•	No player micromanagement of routing required
+8.2 Even Distribution
+When multiple facilities need the same input, supply splits evenly. Example: 200 t/h ore with two 200 t/h refineries = both run at 50% capacity.
+8.3 Throughput Decay
+Stage	Throughput	Effect
+Extraction (Raw)	100 t/h base	High output from extractors
+Raw → Refined	200 t/h capacity	Can handle 2 extractors
+Refined → Processed	160 t/h capacity	~20% surplus to storage
+Processed → Advanced	80 t/h capacity	~50% surplus to storage
+Advanced → High-Tech	20 t/h capacity	~75% surplus to storage
+ 
+9. Facility Reference
+See full facility tables in Sections 9.1-9.7 of detailed specification. Facilities organized by tier: Extraction (T1) → Refining (T2) → Processing (T3) → Advanced (T4) → High-Tech (T5) → Support.
+10. Population & Standard of Living
+10.1 Overview
+Population is tracked per-system (not per-body), representing the total inhabitants across all colonies, stations, and habitats. Body types affect ceiling calculations but people are abstracted as commuting between locations within a system.
+10.2 Floor & Ceiling
+•	System Floor: Sum of all facility floor values. Minimum viable population.
+•	System Ceiling: Sum of (each facility's ceiling × body type multiplier)
+•	Current Population: Actual inhabitants, drifts based on pull factors
+Population cannot fall below floor. Reaching floor triggers negative system states (Famine, Rioting) but prevents total collapse.
+10.3 Facility Population Values
+Tier	Floor	Ceiling	Notes
+T1 Extraction	50	2,000	Basic workers
+T2 Refining	75	4,000	Skilled labor
+T3 Processing	100	6,000	Technical staff
+T4 Advanced	150	10,000	Engineers, specialists
+T5 High-Tech	250	20,000	Scientists, researchers
+10.4 Support Facility Population Values
+Facility	Floor	Ceiling	Notes
+Trade Outpost	25	1,000	Small crew, minimal services
+Trade Station	75	3,000	Medium port, shops, services
+Trade Hub	150	8,000	Major port, commercial district
+Research Center	100	5,000	Scientists, support staff
+Security Station	50	2,000	Military/security personnel
+Comms Outpost	25	500	Skeleton crew
+Comms Station	50	1,500	Technical staff
+Comms Hub	75	3,000	Full operations center
+Financial Center	75	4,000	Office workers, analysts
+Tourism Center	100	6,000	Service industry, hospitality
+10.5 Body Type Ceiling Multipliers
+Each facility's ceiling is multiplied by its body's type multiplier. Orbital facilities use the multiplier of the body they orbit.
+Body Type	Multiplier	Reasoning
+Earth-like	2.0x	Perfect conditions, everyone wants to live here
+Terraformable	1.5x	Good conditions once developed
+Terrestrial/Rocky	1.0x	Baseline, domes required
+Metal-Rich	1.0x	Same as rocky, industrial focus
+Gas Giant (orbital)	0.6x	Orbital habitats only, less desirable
+Star (orbital)	0.5x	Hot, dangerous, minimal comfort
+Icy Moon	0.3x	Cold, dark, nobody's first choice
+10.6 Population Growth Formula
+growth_per_second = base_rate × net_pull_factor × (1 - current/ceiling)²
+•	base_rate: 5 people/second (tunable)
+•	net_pull_factor: Sum of all pull factors (can be negative)
+•	(1 - current/ceiling)²: Capacity dampening - growth slows dramatically near ceiling
+Example Growth Rates:
+Situation	Net Pull	% of Ceiling	Growth/sec
+New colony, lots of room	+1.0	20%	+3.2
+Stable system	+0.5	50%	+0.6
+Near capacity	+1.0	90%	+0.05
+Food shortage	-0.3	50%	-0.4
+Famine crisis	-1.0	50%	-1.25
+10.7 Pull Factors
+Multiple factors combine to create net pull, driving population growth or decline:
+Factor	Direction	Trigger
+QOL - Food Quality	Up	Prepared Foods (+0.1), Quality Foods (+0.2), Gourmet (+0.3)
+QOL - Consumer Goods	Up	Basic Goods (+0.1), Comfort Goods (+0.2), Luxury (+0.3)
+QOL - Medical	Up	Medical facilities present (+0.1)
+QOL - Security	Up	Security adequate (+0.1)
+Resource Abundance	Up	Surplus production beyond consumption
+Capacity Gap	Up	Distance below ceiling (diminishing returns)
+Facility Demand	Up	Current pop below floor (jobs need workers)
+Food Scarcity	Down	Food production barely covers consumption
+Ceiling Overshoot	Down	Population above ceiling (gentle push)
+10.8 Per Capita Consumption
+Population consumes resources linearly. Higher population = more consumption = less exportable surplus.
+Resource	Rate per 1,000 pop/hour	Notes
+Prepared Foods	TBD	Basic nutrition
+Purified Water	TBD	Life support
+Basic Goods	TBD	Consumer needs
+Actual values TBD via playtesting.
+10.9 Production Bonus from Population
+System population provides a logarithmic production bonus:
+production_multiplier = 1 + log₁₀(system_population / 1,000)
+System Population	Multiplier	Notes
+1,000	1.0x	Baseline
+10,000	2.0x	Small colony
+100,000	3.0x	Established system
+1,000,000	4.0x	Major hub
+10,000,000	5.0x	Megacity system
+Design Intent: Logarithmic scaling makes large populations valuable but not game-breaking. A system with 10 million people is powerful, but only 5x better than one with 1,000—not 10,000x.
+10.10 Facility Construction & Population
+•	When a facility completes, its floor value is added to the system floor
+•	If current population < new floor: population instantly set to new floor (workers arrive)
+•	If current population ≥ new floor: only pull factors affected (gradual growth)
+•	Facility ceiling × body multiplier is added to system ceiling
+10.11 Sol Starting Population
+Sol begins with 2,000 population. With 13 starting facilities providing a floor of 850, this represents an established home system with room for growth but already functioning as humanity's hub.
+11. System States & Events
+Systems can enter positive states (Stable, Prosperous, Boom, Gold Rush, Golden Age) or negative states (Disaster Recovery, Famine, Outbreak, Rioting, Insurgency) based on conditions and events.
+12. Ships & Fleet Management
+12.1 Ship Dimensions
+•	Tier: Quality — condition degradation, upgrade ceiling, reliability
+•	Size: Capacity — cargo space, speed, fuel efficiency
+12.2 Ship Sizes
+Size	Capacity	Speed	Fuel/Ton	Landing Req
+Light	Low	Fast	Medium	Trade Outpost
+Medium	Medium	Medium	Medium	Trade Station
+Heavy	High	Slow	Poor	Trade Hub
+Bulk	Very High	Very Slow	Best/ton	Trade Hub
+12.3 Breakdown System
+Condition	Possible Failures	Worst Outcome
+> 75%	Minor Mechanical only	Reduced speed, limps home
+50-75%	Minor, Engine Failure	Stranded, needs rescue
+25-50%	Minor, Engine, Nav Failure	Ship & cargo lost
+< 25%	All including Core Breach	Total loss
+ 
+13. Exploration & Scouting
+13.1 Scout Ships
+•	Range: Default 10ly, upgradeable
+•	Must return before relaunching
+•	Fuel cost scales with distance
+•	Discoveries wait for player return (deferred while offline)
+13.2 Scout Mission Process
+Scout missions perform both discovery and survey in a single deployment:
+6.	Outbound: Travel to frontier, locate new system(s)
+7.	Survey: Scan all bodies, map features, identify resources
+8.	Return: Deliver complete system data to player
+Upon return, player receives full system information:
+•	All celestial bodies with types and slot counts
+•	Body features (High Metal Content, Fertile Soil, etc.)
+•	Resource deposit locations
+•	System rarity tier
+13.3 Scout Upgrades
+•	Speed Modules: Reduce travel time
+•	Range Modules: Reach further systems
+•	Sensor Modules: Better system quality odds (higher rarity tier chance)
+ 
+14. Colonization System
+14.1 Overview
+After scouting reveals new systems, players establish presence through colonization missions. This creates a foothold for further development.
+Flow: Scout (includes survey) → Colonize → Develop
+14.2 Prerequisites
+•	System must be scouted
+•	Player must have an available cargo ship
+•	Origin system must have required resources
+14.3 Mission Setup
+9.	Select cargo ship (origin determined by ship's current location)
+10.	Select target system from scouted options
+11.	Select orbital body for Trade Outpost placement
+12.	Mission launches
+14.4 Colony Ship (Temporary Structure)
+A temporary "Colony Ship" is established at the target body:
+•	Exists only during colonization phase
+•	Accumulates delivered cargo across multiple trips
+•	Cannot be interacted with directly
+•	Converts to Trade Outpost when requirements met
+•	Persists indefinitely if mission is interrupted
+14.5 Construction Requirements
+Resource	Amount
+Steel	100t
+Glass/Ceramics	50t
+Prepared Foods	100t
+Purified Water	50t
+Total	300t
+Travel time and fuel costs scale with distance. Construction requirements are flat to encourage widespread colonization.
+14.6 Delivery Mechanics
+•	Ship shuttles cargo in round trips
+•	Each trip delivers up to ship's cargo capacity
+•	Fuel for round trip consumed from origin system
+Ship Management:
+•	Ship can be recalled (delivered cargo remains at Colony Ship)
+•	Different ship can be assigned to resume
+•	Only one ship assigned at a time
+•	"Resume Colonization" option available for interrupted missions
+14.7 First Colony Protection
+The player's first colonization attempt is fully protected:
+•	No breakdown rolls during first colony mission
+•	Ship and cargo guaranteed safe
+•	Ensures successful establishment before RNG applies
+•	Subsequent colonizations follow normal ship condition rules
+14.8 Completion
+When all resources delivered:
+•	Colony Ship converts to Trade Outpost (Tier 1)
+•	Trade Outpost starts empty (no stored resources)
+•	System status: "Colonized"
+14.9 Post-Colonization Development
+Colonized systems unlock:
+•	One-time cargo missions: Deliver construction materials for facilities
+•	Facility construction: Build on surveyed bodies using delivered materials
+•	Trade routes: Establish regular shipping once production begins
+Development priority is player's choice based on body types and strategic goals.
+ 
+15. Trade & Logistics
+15.1 Overview
+Trade moves resources between systems. Two mission types exist: one-time missions for specific shipments, and recurring trade routes for automated ongoing commerce. This enables system specialization—smaller systems can focus on one production chain and trade for everything else.
+15.2 Trade Stations
+Trade station tier determines which ship sizes can dock. Requirements apply to BOTH origin and destination—you cannot send a large ship to a small port.
+Tier	Name	Capacity	Ships Allowed
+1	Trade Outpost	Low	Light only
+2	Trade Station	Medium	Light, Medium
+3	Trade Hub	High	All sizes
+Design Note: Like real-world shipping, you can't send a Panamax cargo ship to a small fishing village. Large ships require large ports; smaller ships or multiple trips handle distribution to smaller locations.
+15.3 One-Time Missions
+Flexible cargo delivery for specific needs. Two variants:
+One-Way Mission:
+•	Select ship, origin (ship's current location), destination
+•	Configure cargo to deliver
+•	Ship travels to destination, unloads, stays there
+•	Ship available for new mission at destination
+•	Fuel consumed from origin system
+Round-Trip Mission:
+•	Select ship, origin, destination
+•	Configure outbound cargo (origin → destination)
+•	Configure return cargo (destination → origin)
+•	Ship completes round trip, returns to origin
+•	Fuel consumed from origin for entire round trip
+15.4 Trade Routes (Recurring)
+Automated commerce loops for ongoing resource exchange between systems.
+Setup:
+•	Select ship, System A, System B
+•	Configure A→B cargo (resource type, amount up to capacity)
+•	Configure B→A cargo (resource type, amount, or "Nothing")
+•	Route repeats indefinitely until cancelled
+Behavior:
+•	Ship loads cargo at current system
+•	Travels to destination, unloads
+•	Loads return cargo (if configured)
+•	Returns to origin, unloads, repeats
+Empty Legs:
+•	Either direction can be "Nothing" (empty cargo)
+•	Useful for new colonies with no exports yet
+•	Inefficient—wastes capacity and fuel
+•	Players encouraged to find balanced two-way trades
+Multiple Ships:
+•	Routes are ship-specific missions, not limited slots
+•	Multiple ships can run identical A↔B routes
+•	Increases throughput on high-volume routes
+•	Ships operate independently (no automatic staggering)
+15.5 Fuel Consumption
+Each leg of travel consumes fuel from the departure system:
+•	One-way mission: Fuel from origin
+•	Round-trip mission: All fuel from origin (ship carries enough for return)
+•	Trade route (recurring): Each leg from its departure system
+Fuel Formula:
+fuel_cost = base_fuel × cargo_weight_modifier × distance_modifier
+•	base_fuel: Ship-specific fuel efficiency
+•	cargo_weight_modifier: Heavier cargo = more fuel
+•	distance_modifier: Longer routes = more fuel (slightly exponential)
+Important: New colonies without fuel production cannot fuel return trips from trade routes. Either ship fuel to them first, or use round-trip missions from established systems.
+15.6 Travel Time
+travel_time = base_time × distance_modifier / ship_speed_modifier
+•	Light ships: Fastest
+•	Medium ships: Moderate
+•	Heavy ships: Slow
+•	Bulk haulers: Slowest
+15.7 Communications Bonuses
+Communications infrastructure improves trade efficiency. Bonuses apply when Comms facilities cover BOTH endpoints of a route:
+Facility	Travel Time	Fuel Cost	Reliability
+Comms Outpost	-5%	-5%	+5%
+Comms Station	-10%	-10%	+10%
+Comms Hub	-15%	-15%	+15%
+Coverage Range: Outpost 10ly, Station 20ly, Hub 30ly. Systems within range benefit from the bonus.
+Reliability affects ship breakdown chances during transit. Higher reliability = fewer mishaps.
+15.8 Galactic Market
+Instant buy/sell for any resource, no shipping required. Convenience at a cost:
+•	Sell price: 75-90% of base value
+•	Buy price: 100% of base value
+•	Spread: 10-25% lost vs. direct trade
+•	Finance economy: Reduces spread (better rates)
+Design Intent: Galactic market is for convenience and emergencies. Physical trade routes are more efficient for ongoing commerce.
+ 
+16. Facility Production Trees (Build UI)
+16.1 Overview
+The Build interface displays facilities organized by production chains in a tabbed view. Each tab shows one resource chain with visual dependency arrows showing input/output relationships.
+16.2 Production Chain Tabs
+Facilities grouped by primary resource chain:
+•	Metals: Mine → Smelter → Alloy Foundry → Component Factory → ...
+•	Heavy Metals: Heavy Metal Mine → Heavy Metal Refinery → ...
+•	Rare Earths: Rare Earth Excavator → Rare Earth Processor → Electronics Fab → ...
+•	Silicates: Silicate Quarry → Glass Works → Construction Yard → ...
+•	Gas/Fuel: Gas Collector + Hydrocarbon Extractor → Fuel Refinery → ...
+•	Ice/Water: Ice Harvester → Water Purifier → ...
+•	Agriculture: Farm → Food Processor → Food Kitchen → Quality Foods → ...
+•	Livestock: Ranch → Meat Packing Plant → ...
+•	Chemicals: Chemical Plant → Polymer Plant → Consumer Factory → ...
+•	Medical: Medical Lab → Pharmaceutical Plant → ...
+•	High-Tech: AI Laboratory → Quantum Lab → Synthetic Mind Forge
+•	Support: Trade facilities, Research, Security, Communications, Finance, Tourism
+16.3 Visual Dependency Display
+Each tab shows a tree-style layout with arrows indicating production flow:
+Example (Metals Chain):
+┌────────┐    ┌─────────┐    ┌──────────────┐    ┌───────────────────┐
+│  Mine  │───→│ Smelter │───→│ Alloy Foundry│───→│ Component Factory │
+└────────┘    └─────────┘    └──────────────┘    └───────────────────┘
+  [Iron Ore]    [Steel]         [Alloys]           [Components]
+16.4 Multi-Input Facilities
+Some facilities require inputs from multiple chains. These appear in their primary chain with indicators showing cross-chain dependencies:
+Electronics Fab requires:
+•	Components (from Metals chain)
+•	Rare Earths (from Rare Earths chain)
+•	Glass/Ceramics (from Silicates chain)
+16.5 UI Behavior
+•	Clicking a facility shows full recipe and requirements
+•	Unavailable facilities (missing prerequisites) shown grayed
+•	Built facilities highlighted
+•	Hover shows throughput and efficiency stats
+•	Cross-chain dependencies shown with different colored arrows or icons
+ 
+17. Technology & Research
+•	Tech level is per-system (not shared between systems)
+•	Research Centers raise tech level
+•	Higher tech unlocks advanced facilities
+•	Trade-off: Research Centers consume valuable construction slots
+18. Military & Security
+•	Security level reduces piracy on trade routes
+•	Prevents/suppresses Rioting and Insurgency
+•	Contributes to Standard of Living
+•	Weapons are tradeable resource, don't directly raise security
+19. Naming Conventions
+19.1 Systems
+Procedural generator with themes: Greek letters + constellation, Catalog numbers, Descriptive names, Mythology, Corporate/colonial.
+19.2 Bodies (Arabic Numerals)
+•	Planets: {System} {Number} — e.g., "Sol 3"
+•	Moons: {System} {Number}-{letter} — e.g., "Sol 3-a"
+19.3 Ships
+Multiple themes: Nautical, Mythology, Corporate bland, Optimistic, Humorous, Frontier rugged.
+ 
+20. Idle Mechanics
+20.1 Active Play
+•	Fast ticks (100-200ms) for smooth UI
+•	Real-time production/consumption updates
+20.2 Offline Calculation
+•	Batch calculation on return
+•	Production accumulates (up to storage cap)
+•	Overflow auto-sells for credits
+•	Trade routes operate normally
+•	Population drifts, states may change
+•	No offline cap (storage limits natural ceiling)
+20.3 Deferred Events
+•	Scout returns wait for player to "open"
+•	Survey completions queued for player
+•	Notifications summarize offline progress
+21. Technical Architecture
+21.1 Technology Stack
+•	Frontend: Angular 18+, TypeScript, Angular Material
+•	State Management: Angular Signals for reactive game state
+•	Persistence: IndexedDB for game state, localStorage for settings
+•	Desktop: Electron wrapper for Windows/Mac/Linux
+•	Mobile: Ionic Capacitor for iOS/Android
+•	Future Backend: Node.js (if multiplayer/cloud sync added)
+21.2 Game Loop
+•	Active: Fast ticks (100-200ms) for smooth number updates
+•	Background: Calculate elapsed time on app resume
+•	Offline: Batch formulas × time, apply storage overflow
+21.3 Architecture Approach
+•	Service-based state management with Signals
+•	Engine classes for game logic (production, population, trade)
+•	Feature modules for UI components
+•	Pure TypeScript models shareable with future Node.js backend
+21.4 Galaxy Map
+•	Phase 1: Simple SVG (pan/zoom, click-to-select)
+•	Phase 2: Canvas if performance needed
+•	DOM events for natural Angular integration
+ 
+22. MVP Scope & Future Features
+22.1 MVP Features
+•	Home system with all starting facilities
+•	Scout discovery with integrated survey
+•	Colonization system with Colony Ship mechanics
+•	All Tier 1-4 facilities and resources
+•	Trade routes with round-trip cargo
+•	One-time cargo missions for construction
+•	Population floor/ceiling mechanics
+•	Basic system states (Stable, Famine, Rioting)
+•	Ship condition and breakdown system
+•	First colony protection
+•	Galactic market with spread
+•	Offline progress calculation
+•	Production tree Build UI
+22.2 Post-MVP Features
+•	Tier 5 High-Tech resources and facilities
+•	Starport stellar facility
+•	Unique/special buildings
+•	Full event system with all states
+•	Communications relay route bonuses
+•	Terraforming mechanics
+•	Prestige/reset system
+22.3 Future Considerations
+•	Cloud save sync
+•	Leaderboards
+•	Multiplayer trading
+•	Faction relationships
+ 
+23. Xeno-Science & Discovery
+23.1 Overview
+Xeno-Science represents late-game content involving alien artifacts, exotic materials, and technology beyond human understanding. These discoveries only appear far from Sol, rewarding players who push their empire to the frontier.
+23.2 Distance-Based Discovery
+Xeno-Science content uses distance from Sol to gate discovery chances:
+•	0-100 ly: No Xeno-Science discoveries possible
+•	100-150 ly: Very rare chance of minor discoveries
+•	150-200 ly: Low chance, minor to moderate discoveries
+•	200+ ly: Standard discovery rates, full content available
+Note: Exact distance thresholds and probability curves subject to balancing.
+23.3 Discovery Types
+•	Xeno-Compounds: Alien materials found in special deposits or derelicts
+•	Alien Artifacts: One-time discoveries that unlock research options
+•	Anomalous Systems: Rare star systems with unique properties or resources
+23.4 Xeno-Science Economy
+Systems can specialize in Xeno-Sciences economy type, which:
+•	Processes Xeno-Compounds into usable materials
+•	Produces Quantum Materials (AI Cores + Exotic Compounds)
+•	Enables Synthetic Mind production (end-game resource)
+•	Requires significant infrastructure investment
+23.5 Design Intent
+Xeno-Science provides a long-term goal that requires substantial empire expansion. Players must maintain supply lines across 100+ light-years, creating complex logistics challenges and rewarding mastery of the game's core systems.
+ 
+24. Prestige System
+24.1 Overview
+The Prestige system provides a New Game+ loop, allowing players to reset their empire in exchange for permanent bonuses. This extends replayability and gives meaning to long-term progress.
+24.2 Prestige Score Calculation
+When initiating prestige, a score is calculated from the player's total empire:
+•	Storage Tonnage: Total tonnes of all resources across all systems
+•	Credits Balance: Current credit holdings
+•	Total Population: Sum of population across all colonized systems
+Formula: TBD - requires extensive balancing. Target: minimum ~1 week of play for first prestige token.
+24.3 Prestige Tokens
+Prestige score converts to tokens (name to be workshopped). Token earning scales with empire size:
+•	Small empire: Few tokens, slow earning
+•	Large empire: More tokens, faster earning rate
+•	Incentivizes building up before prestiging
+24.4 New Game+ Bonuses
+Each token provides small permanent bonuses in subsequent runs:
+•	Production Output: +0.1% per token (or less)
+•	Ship Speed: +0.1% per token (or less)
+•	Research Speed: +0.1% per token (or less)
+Design Intent: Bonuses are intentionally tiny. Prestige rewards dedication but doesn't trivialize gameplay. A player with 100 tokens has a 10% advantage, noticeable but not game-breaking.
+24.5 What Resets
+•	All systems except Sol
+•	All resources and credits
+•	All ships (reset to starting fleet)
+•	Galaxy map (new procedural generation)
+•	Sol facilities reset to starting configuration
+24.6 What Persists
+•	Prestige tokens and accumulated bonuses
+•	Achievements/statistics (if implemented)
+•	Unlocked knowledge (player skill, not in-game)
+24.7 Balancing Considerations
+•	First prestige should feel earned (~1 week minimum)
+•	Subsequent prestiges should be faster but still meaningful
+•	Bonuses must not compound to game-breaking levels
+•	Consider diminishing returns or soft caps on total bonus
+•	Extensive playtesting required for all values
+Document Version: 6.0 | Status: In Development

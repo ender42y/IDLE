@@ -49,7 +49,7 @@ export class HomeSystemService {
       bodyIds: [],
       stellarSlots: 2, // 7 bodies
       state: SystemState.Stable,
-      totalPopulation: 1000, // Starting population
+      totalPopulation: 2000, // GDD v6: Starting population
       techLevel: 1,
       securityLevel: 1,
       standardOfLiving: 50,
@@ -81,13 +81,14 @@ export class HomeSystemService {
   }
 
   private createStartingResources(): ResourceStock[] {
-    return [
+    // GDD v6 Section 2.5: Starting Resources
+    return [ //TESTING 10x for testing purposes
       { resourceId: ResourceId.Credits, amount: 100000, capacity: 1000000 },
       { resourceId: ResourceId.Steel, amount: 5000, capacity: 10000 },
       { resourceId: ResourceId.GlassCeramics, amount: 2000, capacity: 10000 },
       { resourceId: ResourceId.PurifiedWater, amount: 3000, capacity: 10000 },
-      { resourceId: ResourceId.Fuel, amount: 20000, capacity: 100000 },
-      { resourceId: ResourceId.PreparedFoods, amount: 10000, capacity: 10000 },
+      { resourceId: ResourceId.Fuel, amount: 2000, capacity: 100000 },
+      { resourceId: ResourceId.PreparedFoods, amount: 2000, capacity: 10000 },
       { resourceId: ResourceId.BasicGoods, amount: 1000, capacity: 10000 },
       { resourceId: ResourceId.Components, amount: 500, capacity: 10000 }
     ];
@@ -106,6 +107,7 @@ export class HomeSystemService {
     this.gameState.addBody(star);
 
     // Sol 1 - Rocky Planet
+    // GDD v6: Silicate Quarry + Glass Works (Silicates → Glass/Ceramics chain)
     const sol1 = this.createBody({
       systemId,
       name: 'Sol 1',
@@ -116,8 +118,10 @@ export class HomeSystemService {
     });
     this.gameState.addBody(sol1);
     this.createFacility(sol1.id, FacilityId.SilicateQuarry);
+    this.createFacility(sol1.id, FacilityId.GlassWorks, true); // Orbital
 
     // Sol 2 - Metal-Rich Planet
+    // GDD v6: Mine + Smelter (Iron Ore → Steel chain)
     const sol2 = this.createBody({
       systemId,
       name: 'Sol 2',
@@ -128,20 +132,24 @@ export class HomeSystemService {
     });
     this.gameState.addBody(sol2);
     this.createFacility(sol2.id, FacilityId.Mine);
+    this.createFacility(sol2.id, FacilityId.Smelter, true); // Orbital
 
-    // Sol 3 - Terraformable Planet (main hub)
+    // Sol 3 - Earth-like Planet (main hub)
+    // GDD v6: Farm + Food Processor + Food Kitchen (Organics → Grain → Prepared Foods chain)
     const sol3 = this.createBody({
       systemId,
       name: 'Sol 3',
-      type: BodyType.TerraformablePlanet,
+      type: BodyType.EarthLikePlanet, // GDD v6: Changed from Terraformable to Earth-like
       orbitalSlots: 3,
       surfaceSlots: 5,
       features: [BodyFeature.FertileSoil, BodyFeature.Habitable],
-      population: 800,
-      populationCeiling: 10000
+      population: 1500, // Main population center
+      populationCeiling: 20000 // Higher ceiling for Earth-like
     });
     this.gameState.addBody(sol3);
     this.createFacility(sol3.id, FacilityId.Farm);
+    this.createFacility(sol3.id, FacilityId.FoodProcessor);
+    this.createFacility(sol3.id, FacilityId.FoodKitchen);
     // Trade Station orbiting Sol 3
     this.createFacility(sol3.id, FacilityId.TradeStation, true);
 
@@ -159,6 +167,7 @@ export class HomeSystemService {
     // No starting facility - player's first expansion choice
 
     // Sol 4 - Gas Giant
+    // GDD v6: Gas Collector + Hydrocarbon Extractor + Fuel Refinery (Atmo Gases + Hydrocarbons → Fuel chain)
     const sol4 = this.createBody({
       systemId,
       name: 'Sol 4',
@@ -169,8 +178,11 @@ export class HomeSystemService {
     });
     this.gameState.addBody(sol4);
     this.createFacility(sol4.id, FacilityId.GasCollector, true);
+    this.createFacility(sol4.id, FacilityId.HydrocarbonExtractor, true);
+    this.createFacility(sol4.id, FacilityId.FuelRefinery, true);
 
     // Sol 4-a - Icy Moon
+    // GDD v6: Ice Harvester + Water Purifier (Ice → Purified Water chain)
     const sol4a = this.createBody({
       systemId,
       name: 'Sol 4-a',
@@ -182,6 +194,7 @@ export class HomeSystemService {
     });
     this.gameState.addBody(sol4a);
     this.createFacility(sol4a.id, FacilityId.IceHarvester);
+    this.createFacility(sol4a.id, FacilityId.WaterPurifier, true); // Orbital
 
     // Sol 4-b - Icy Moon (backup)
     const sol4b = this.createBody({

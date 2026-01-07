@@ -14,12 +14,39 @@ import {
 } from '../models/star-system.model';
 import { CelestialBody, BodyType, BodyFeature } from '../models/celestial-body.model';
 import { Facility, FacilityId } from '../models/facility.model';
-import { Ship, ShipType, ShipSize, ShipTier, ShipStatus, TradeRoute, ScoutMission, TradeTrip } from '../models/ship.model';
+import { Ship, ShipType, ShipSize, ShipTier, ShipStatus, TradeRoute, ScoutMission, TradeTrip, TradeMission } from '../models/ship.model';
 import { ResourceId, ResourceStock, RESOURCE_DEFINITIONS } from '../models/resource.model';
+import { PrestigeState, INITIAL_PRESTIGE_STATE } from '../models/prestige.model';
 
 const STORAGE_KEY = 'idle_game_state';
 const SETTINGS_KEY = 'idle_game_settings';
 
+/**
+ * Central state management service for the entire game.
+ * Manages all game entities (systems, bodies, facilities, ships) and provides
+ * reactive access via Angular signals for UI updates.
+ *
+ * Architecture:
+ * - Uses Angular 18 signals for reactive state management
+ * - All state updates are immutable (spread operator patterns)
+ * - Collections stored as Record<id, T> for O(1) lookup performance
+ * - Provides both direct state access and computed derived values
+ * - Handles persistence to localStorage with automatic migration
+ *
+ * State Structure:
+ * - Systems: Star systems with discovery/colonization state
+ * - Bodies: Celestial bodies (planets, moons) with facilities
+ * - Facilities: Production buildings with operational status
+ * - Ships: Fleet units with mission tracking
+ * - Trade Routes: Recurring trade configurations
+ * - Scout Missions: Exploration missions
+ * - Trade Missions: One-time cargo deliveries (GDD v6)
+ *
+ * Persistence:
+ * - Auto-saves to localStorage based on settings.autoSaveInterval
+ * - Implements migration logic for save format changes (see migrateGameState)
+ * - Tracks version numbers to trigger migrations on load
+ */
 @Injectable({
   providedIn: 'root'
 })
@@ -240,6 +267,93 @@ export class GameStateService {
     });
   }
 
+  // GDD v6: Trade mission operations (one-time missions)
+  addTradeMission(mission: TradeMission): void {
+    this._gameState.update(state => ({
+      ...state,
+      tradeMissions: { ...state.tradeMissions, [mission.id]: mission }
+    }));
+  }
+
+  updateTradeMission(missionId: string, updates: Partial<TradeMission>): void {
+    this._gameState.update(state => ({
+      ...state,
+      tradeMissions: {
+        ...state.tradeMissions,
+        [missionId]: { ...state.tradeMissions[missionId], ...updates }
+      }
+    }));
+  }
+
+  removeTradeMission(missionId: string): void {
+    this._gameState.update(state => {
+      const { [missionId]: removed, ...remaining } = state.tradeMissions;
+      return { ...state, tradeMissions: remaining };
+    });
+  }
+
+  // GDD v6: Prestige operations
+  setPrestigeState(prestige: PrestigeState): void {
+    this._gameState.update(state => ({
+      ...state,
+      prestige
+    }));
+  }
+
+  // Body removal for prestige reset
+  removeBody(bodyId: string): void {
+    this._gameState.update(state => {
+      const { [bodyId]: removed, ...remaining } = state.bodies;
+      return { ...state, bodies: remaining };
+    });
+  }
+
+  // Active trip operations for trade service
+  addActiveTrip(trip: TradeTrip): void {
+    this._gameState.update(state => ({
+      ...state,
+      activeTrips: { ...state.activeTrips, [trip.id]: trip }
+    }));
+  }
+
+  removeActiveTrip(tripId: string): void {
+    this._gameState.update(state => {
+      const { [tripId]: removed, ...remaining } = state.activeTrips;
+      return { ...state, activeTrips: remaining };
+    });
+  }
+
+  updateActiveTrip(tripId: string, updates: Partial<TradeTrip>): void {
+    this._gameState.update(state => ({
+      ...state,
+      activeTrips: {
+        ...state.activeTrips,
+        [tripId]: { ...state.activeTrips[tripId], ...updates }
+      }
+    }));
+  }
+
+  // Batched state reset for prestige
+  resetGameStateForPrestige(preservedPrestige: PrestigeState): void {
+    this._gameState.update(state => ({
+      ...state,
+      systems: {},
+      bodies: {},
+      facilities: {},
+      ships: {},
+      tradeRoutes: {},
+      scoutMissions: {},
+      activeTrips: {},
+      tradeMissions: {},
+      credits: 10000,
+      explorationFrontier: [],
+      nextDiscoveryDistance: 5,
+      selectedSystemId: null,
+      selectedBodyId: null,
+      prestige: preservedPrestige
+    }));
+  }
+
   // Credits operations
   addCredits(amount: number): void {
     this._gameState.update(state => ({
@@ -452,12 +566,12 @@ export class GameStateService {
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (!savedData) return false;
 
-      const state: GameState = JSON.parse(savedData);
+      let state: GameState = JSON.parse(savedData);
 
-      // Validate version compatibility
+      // GDD v6: Migrate from v0.1.0 (v5) to v0.2.0 (v6)
       if (state.version !== GAME_VERSION) {
-        console.warn('Save game version mismatch, may need migration');
-        // Could add migration logic here
+        console.log(`Migrating save from ${state.version} to ${GAME_VERSION}`);
+        state = this.migrateGameState(state);
       }
 
       this._gameState.set({
@@ -470,6 +584,62 @@ export class GameStateService {
       console.error('Failed to load game:', error);
       return false;
     }
+  }
+
+  /**
+   * GDD v6: Migrate old save data to new format
+   */
+  private migrateGameState(oldState: Partial<GameState> & { version?: string }): GameState {
+    const migrated = { ...oldState } as GameState;
+
+    // Migrate v0.1.0 (GDD v5) -> v0.2.0 (GDD v6)
+    if (!oldState.version || oldState.version === '0.1.0') {
+      console.log('Applying v5 to v6 migration...');
+
+      // Add tradeMissions if missing
+      if (!migrated.tradeMissions) {
+        migrated.tradeMissions = {};
+      }
+
+      // Add prestige state if missing
+      if (!migrated.prestige) {
+        migrated.prestige = INITIAL_PRESTIGE_STATE;
+      }
+
+      // Add surveyComplete to existing scout missions
+      for (const missionId of Object.keys(migrated.scoutMissions ?? {})) {
+        const mission = migrated.scoutMissions[missionId];
+        if (mission && (mission as { surveyComplete?: boolean }).surveyComplete === undefined) {
+          // Completed missions should have surveyComplete = true
+          (mission as { surveyComplete: boolean }).surveyComplete =
+            mission.status === 'completed' || mission.status === 'returning';
+        }
+      }
+
+      // Add xeno properties to systems if missing
+      for (const systemId of Object.keys(migrated.systems ?? {})) {
+        const system = migrated.systems[systemId];
+        if (system) {
+          if (system.anomalous === undefined) {
+            system.anomalous = false;
+          }
+          if (system.hasXenoDiscovery === undefined) {
+            system.hasXenoDiscovery = false;
+          }
+        }
+      }
+
+      this.addNotification({
+        type: 'info',
+        title: 'Save Migrated',
+        message: 'Your save has been updated to GDD v6 format.'
+      });
+    }
+
+    // Update version to current
+    migrated.version = GAME_VERSION;
+
+    return migrated;
   }
 
   saveSettings(): void {
@@ -532,6 +702,7 @@ export class GameStateService {
       tradeRoutes: {},
       scoutMissions: {},
       activeTrips: {},
+      tradeMissions: {},
       explorationFrontier: [],
       nextDiscoveryDistance: 5,
       selectedSystemId: null,
@@ -539,7 +710,8 @@ export class GameStateService {
       notifications: [],
       unreadNotificationCount: 0,
       stats: INITIAL_GAME_STATS,
-      marketPrices: initialMarketPrices
+      marketPrices: initialMarketPrices,
+      prestige: INITIAL_PRESTIGE_STATE
     };
   }
 }

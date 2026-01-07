@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { GameStateService } from './game-state.service';
+import { PopulationService } from './population.service';
+import { PrestigeService } from './prestige.service';
 import {
   Facility,
   FacilityId,
@@ -17,21 +19,54 @@ import {
   SYSTEM_STATE_DEFINITIONS
 } from '../models/star-system.model';
 
+/**
+ * Report showing production performance for a single facility.
+ * Used for UI display and debugging production bottlenecks.
+ */
 export interface ProductionReport {
   facilityId: string;
   facilityName: string;
   outputResource: ResourceId;
-  baseRate: number;
-  actualRate: number;
-  efficiency: number;
-  blockedReason?: string;
+  baseRate: number;        // Base production rate before modifiers (tonnes/hour)
+  actualRate: number;      // Actual production after modifiers and input availability
+  efficiency: number;      // Combined efficiency (0-1+, includes modifiers)
+  blockedReason?: string;  // Why production is limited (e.g., "Insufficient IronOre")
 }
 
+/**
+ * Manages resource production from facilities across all colonized systems.
+ * Processes extraction (Tier 1) and conversion (Tier 2+) facilities in correct
+ * dependency order to ensure production chains work correctly.
+ *
+ * Processing Order (Critical):
+ * 1. Sort facilities by tier (extractors → refiners → processors → advanced → high-tech)
+ * 2. Process each facility in order so inputs are available when needed
+ * 3. Apply system-wide modifiers (state effects, population bonuses)
+ * 4. Apply body-specific modifiers (features like High Metal Content)
+ *
+ * Production Rules:
+ * - Tier 1 (Extraction): Produces raw resources from celestial bodies
+ * - Tier 2+ (Conversion): Consumes inputs to produce outputs with efficiency loss
+ * - All rates are in tonnes per hour (t/h)
+ * - Conversion facilities only process when ALL inputs are available
+ * - Partial processing allowed when inputs are limited (limiting factor < 1)
+ *
+ * Modifiers Applied:
+ * - System state (e.g., Famine -20% production, Prosperity +10%)
+ * - Population production bonus (GDD v6: 1 + log10(population / 1000))
+ * - Body features (e.g., High Metal Content +25% mining)
+ * - Economy type matching (mining bonuses only apply to mining facilities)
+ *
+ * @see ProductionReport for facility-level production details
+ * @see {@link https://github.com/ender42y/IDLE GDD v6 Section 12} for production formulas
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class ProductionService {
   private gameState = inject(GameStateService);
+  private populationService = inject(PopulationService);
+  private prestigeService = inject(PrestigeService);
 
   /**
    * Process a production tick for all facilities
@@ -58,6 +93,9 @@ export class ProductionService {
       // Calculate system-wide modifiers
       const systemModifier = this.getSystemProductionModifier(system);
 
+      // Apply prestige production bonus
+      const prestigeModifier = this.prestigeService.getProductionModifier();
+
       // Process facilities in tier order (extractors first, then refiners, etc.)
       const sortedFacilities = this.sortFacilitiesByTier(systemFacilities);
 
@@ -76,8 +114,8 @@ export class ProductionService {
         // Calculate body bonuses
         const bodyModifier = this.getBodyProductionModifier(body, definition);
 
-        // Combined modifier
-        const totalModifier = systemModifier * bodyModifier;
+        // Combined modifier (includes prestige bonus)
+        const totalModifier = systemModifier * bodyModifier * prestigeModifier;
 
         // Handle extraction facilities
         if (definition.production) {
@@ -149,6 +187,7 @@ export class ProductionService {
 
     const reports: ProductionReport[] = [];
     const systemModifier = this.getSystemProductionModifier(system);
+    const prestigeModifier = this.prestigeService.getProductionModifier();
 
     const systemBodies = system.bodyIds
       .map(id => state.bodies[id])
@@ -167,7 +206,7 @@ export class ProductionService {
       if (!body) continue;
 
       const bodyModifier = this.getBodyProductionModifier(body, definition);
-      const totalModifier = systemModifier * bodyModifier;
+      const totalModifier = systemModifier * bodyModifier * prestigeModifier;
 
       if (definition.production) {
         reports.push({
@@ -234,13 +273,23 @@ export class ProductionService {
     return netRate;
   }
 
+  /**
+   * Calculate system-wide production modifier
+   * GDD v6 Section 10.9: Includes population production bonus
+   */
   private getSystemProductionModifier(system: StarSystem): number {
     const stateDefinition = SYSTEM_STATE_DEFINITIONS[system.state];
     let modifier = 1;
 
+    // System state effects (e.g., famine, prosperity)
     if (stateDefinition.effects.productionModifier) {
       modifier *= (1 + stateDefinition.effects.productionModifier);
     }
+
+    // GDD v6 Section 10.9: Population production bonus
+    // production_multiplier = 1 + log10(system_population / 1000)
+    const populationBonus = this.populationService.getPopulationProductionBonus(system.id);
+    modifier *= populationBonus;
 
     return modifier;
   }

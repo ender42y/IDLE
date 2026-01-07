@@ -1,11 +1,20 @@
-// Game state model for I.D.L.E.
+/**
+ * Game state model for I.D.L.E.
+ * Central definition of the complete game state including all systems, ships,
+ * resources, and player progress. Designed for immutable signal-based updates.
+ */
 
 import { ResourceId, ResourceStock } from './resource.model';
 import { StarSystem } from './star-system.model';
 import { CelestialBody } from './celestial-body.model';
 import { Facility } from './facility.model';
-import { Ship, TradeRoute, ScoutMission, TradeTrip } from './ship.model';
+import { Ship, TradeRoute, ScoutMission, TradeTrip, TradeMission } from './ship.model';
+import { PrestigeState, INITIAL_PRESTIGE_STATE } from './prestige.model';
 
+/**
+ * Player-configurable game settings.
+ * Persisted separately from game state for convenience.
+ */
 export interface GameSettings {
   tickRate: number; // ms between ticks
   autoSaveInterval: number; // ms between auto-saves
@@ -14,6 +23,10 @@ export interface GameSettings {
   theme: 'dark' | 'light';
 }
 
+/**
+ * Statistical tracking of player achievements and milestones.
+ * Used for prestige calculations and UI display.
+ */
 export interface GameStats {
   totalPlayTime: number; // ms
   systemsDiscovered: number;
@@ -25,6 +38,10 @@ export interface GameStats {
   maxPopulation: number;
 }
 
+/**
+ * In-game notification shown to the player.
+ * Types: info (neutral), success (positive), warning (caution), danger (critical)
+ */
 export interface Notification {
   id: string;
   type: 'info' | 'success' | 'warning' | 'danger';
@@ -35,6 +52,11 @@ export interface Notification {
   systemId?: string;
 }
 
+/**
+ * Complete game state representing the entire player session.
+ * All collections use Record<id, T> for O(1) lookups.
+ * Designed to be updated immutably via Angular signals.
+ */
 export interface GameState {
   // Meta
   version: string;
@@ -58,6 +80,7 @@ export interface GameState {
   tradeRoutes: Record<string, TradeRoute>;
   scoutMissions: Record<string, ScoutMission>;
   activeTrips: Record<string, TradeTrip>;
+  tradeMissions: Record<string, TradeMission>; // GDD v6: One-time trade missions
 
   // Discovery frontier
   explorationFrontier: { x: number; y: number }[];
@@ -76,8 +99,15 @@ export interface GameState {
 
   // Galactic market prices (fluctuate slightly)
   marketPrices: Record<ResourceId, { buy: number; sell: number }>;
+
+  // GDD v6 Section 24: Prestige system
+  prestige: PrestigeState;
 }
 
+/**
+ * Default game settings for new games.
+ * Tickrate of 200ms = 5 ticks per second for smooth animations.
+ */
 export const INITIAL_GAME_SETTINGS: GameSettings = {
   tickRate: 200, // 5 ticks per second
   autoSaveInterval: 60000, // 1 minute
@@ -86,6 +116,10 @@ export const INITIAL_GAME_SETTINGS: GameSettings = {
   theme: 'dark'
 };
 
+/**
+ * Initial stat values for new games.
+ * Sol counts as first discovered and colonized system.
+ */
 export const INITIAL_GAME_STATS: GameStats = {
   totalPlayTime: 0,
   systemsDiscovered: 1, // Home system
@@ -97,4 +131,13 @@ export const INITIAL_GAME_STATS: GameStats = {
   maxPopulation: 0
 };
 
-export const GAME_VERSION = '0.1.0';
+/**
+ * Current game version for save file migration.
+ * Updated when save format changes to trigger migration logic.
+ */
+export const GAME_VERSION = '0.2.0';  // v6 GDD update
+
+/**
+ * Previous game version - used to detect saves that need migration.
+ */
+export const PREVIOUS_VERSION = '0.1.0';  // v5 GDD
