@@ -399,6 +399,7 @@ export class ColonizationService {
     if (!destination) return;
 
     const mission = ship.colonizationMission;
+    const origin = state.systems[mission.originSystemId];
     //TESTING - remove for production
     console.log('[Colonization] completing trip', {
       shipId,
@@ -467,7 +468,6 @@ export class ColonizationService {
       // More trips needed - return to origin to pick up more
       console.log('[Colonization] More cargo to deliver, returning to origin'); //TESTING - remove for production
 
-      const origin = state.systems[mission.originSystemId];
       if (!origin) {
         console.error('[Colonization] Origin system not found!');
         this.cancelColonizationMission(ship);
@@ -536,21 +536,101 @@ export class ColonizationService {
       if (!this.meetsColonizationRequirements(mission.deliveredCargo)) {
         console.warn('[Colonization] Delivered cargo does not meet minimum requirements', mission.deliveredCargo); //TESTING - remove for production
 
-        // Get detailed info about what's missing
+        // Determine what's missing
         const requirements = this.getColonizationRequirements();
-        const missing: string[] = [];
+        const missingNeeded: { resourceId: ResourceId; amountNeeded: number }[] = [];
         for (const req of requirements) {
           const delivered = mission.deliveredCargo.find(c => c.resourceId === req.resourceId)?.amount ?? 0;
           if (delivered < req.amount) {
-            const resourceName = RESOURCE_DEFINITIONS[req.resourceId]?.name ?? req.resourceId;
-            missing.push(`${resourceName}: ${delivered}/${req.amount}`);
+            missingNeeded.push({ resourceId: req.resourceId, amountNeeded: req.amount - delivered });
           }
         }
+
+        // Try to source missing resources from the origin system automatically
+        let anySourced = false;
+        if (origin) {
+          for (const m of missingNeeded) {
+            const availableAtOrigin = this.gameState.getSystemResource(origin.id, m.resourceId);
+            const amountToTake = Math.min(availableAtOrigin, m.amountNeeded);
+            if (amountToTake > 0) {
+              // Reserve from origin storage
+              this.gameState.removeResourceFromSystem(origin.id, m.resourceId, amountToTake);
+
+              // Add to remainingCargo so subsequent trips will pick it up
+              const existing = mission.remainingCargo.find(r => r.resourceId === m.resourceId);
+              if (existing) {
+                existing.amount += amountToTake;
+              } else {
+                mission.remainingCargo.push({ resourceId: m.resourceId, amount: amountToTake } as any);
+              }
+
+              anySourced = true;
+            }
+          }
+        }
+
+        if (anySourced && origin) {
+          // We have additional supplies at origin — send the ship back to pick them up.
+          const distance = getRouteDist(origin.coordinates, destination.coordinates);
+          const returnFuelNeeded = calculateFuelCost(distance, 0, ship);
+          const fuelAvailableAtDest = this.gameState.getSystemResource(destination.id, ResourceId.Fuel);
+
+          if (fuelAvailableAtDest < returnFuelNeeded) {
+            // Can't return immediately due to lack of fuel at destination — mark idle and keep mission
+            mission.waitingForFuel = true;
+            this.gameState.updateShip(shipId, {
+              status: ShipStatus.Idle,
+              currentSystemId: destination.id,
+              destinationSystemId: undefined,
+              departureTime: undefined,
+              arrivalTime: undefined,
+              currentCargo: [],
+              colonizationMission: mission
+            });
+
+            // Informational only — no blocking warning to the player
+            this.gameState.addNotification({
+              type: 'info',
+              title: 'Awaiting Fuel to Return',
+              message: `${ship.name} needs ${returnFuelNeeded.toFixed(1)} fuel at ${destination.name} to return to ${origin.name} for remaining supplies.`
+            });
+
+            return;
+          }
+
+          // Deduct fuel at destination and send ship back empty to origin to load new supplies
+          this.gameState.removeResourceFromSystem(destination.id, ResourceId.Fuel, returnFuelNeeded);
+
+          const travelTimeHours = calculateTravelTime(distance, ship);
+          const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
+          const now = Date.now();
+
+          this.gameState.updateShip(shipId, {
+            status: ShipStatus.InTransit,
+            currentSystemId: destination.id,
+            destinationSystemId: origin.id,
+            departureTime: now,
+            arrivalTime: now + travelTimeMs,
+            currentCargo: [],
+            colonizationMission: mission
+          });
+
+          this.gameState.addNotification({
+            type: 'info',
+            title: 'Returning for Additional Supplies',
+            message: `${ship.name} is returning to ${origin.name} to pick up missing colonization supplies.`
+          });
+
+          return;
+        }
+
+        // Nothing to source (origin doesn't have more) — fall back to previous behavior: inform and end mission
+        const missingList = missingNeeded.map(m => `${RESOURCE_DEFINITIONS[m.resourceId]?.name ?? m.resourceId}: ${m.amountNeeded}`).join(', ');
 
         this.gameState.addNotification({
           type: 'warning',
           title: 'Insufficient Colonization Supplies',
-          message: `${ship.name} delivered all cargo, but the system cannot be colonized. Missing requirements: ${missing.join(', ')}`,
+          message: `${ship.name} delivered all reserved cargo, but the system cannot be colonized. Missing requirements: ${missingList}`,
           systemId: destination.id
         });
 
