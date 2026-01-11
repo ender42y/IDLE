@@ -202,7 +202,8 @@ export class ColonizationService {
         remainingCargo.push({ resourceId: item.resourceId, amount: amountRemaining });
       }
 
-      if (cargoLoadedThisTrip >= sizeDefinition.cargoCapacity) break;
+      // Continue processing all cargo items even if ship is full
+      // to ensure everything goes into remainingCargo
     }
 
     console.log('[Colonization] First trip cargo:', firstTripCargo, 'Remaining:', remainingCargo); //TESTING - remove for production
@@ -322,66 +323,100 @@ export class ColonizationService {
         }
       }
 
-      // Check for ships waiting for fuel at origin
+      // Check for ships waiting for fuel at origin or destination
       if (ship.status === ShipStatus.Idle && ship.colonizationMission?.waitingForFuel) {
         const mission = ship.colonizationMission;
         const origin = state.systems[mission.originSystemId];
-        if (!origin) continue;
-
-        // Ship must be at origin to load fuel and cargo
-        if (ship.currentSystemId !== mission.originSystemId) continue;
-
-        // Calculate fuel needed for next trip
-        const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
         const destination = state.systems[mission.destinationSystemId];
-        if (!destination) continue;
+        if (!origin || !destination) continue;
 
         const distance = getRouteDist(origin.coordinates, destination.coordinates);
 
-        // Calculate next trip cargo to determine fuel needs
-        const nextTripCargo: { resourceId: ResourceId; amount: number }[] = [];
-        let cargoLoaded = 0;
+        // Handle ships waiting at origin (need to depart for destination with cargo)
+        if (ship.currentSystemId === mission.originSystemId) {
+          // Calculate fuel needed for next trip
+          const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
 
-        for (const item of mission.remainingCargo) {
-          const spaceLeft = sizeDefinition.cargoCapacity - cargoLoaded;
-          const amountToLoad = Math.min(item.amount, spaceLeft);
-          if (amountToLoad > 0) {
-            nextTripCargo.push({ resourceId: item.resourceId, amount: amountToLoad });
-            cargoLoaded += amountToLoad;
+          // Calculate next trip cargo to determine fuel needs
+          const nextTripCargo: { resourceId: ResourceId; amount: number }[] = [];
+          let cargoLoaded = 0;
+
+          for (const item of mission.remainingCargo) {
+            const spaceLeft = sizeDefinition.cargoCapacity - cargoLoaded;
+            const amountToLoad = Math.min(item.amount, spaceLeft);
+            if (amountToLoad > 0) {
+              nextTripCargo.push({ resourceId: item.resourceId, amount: amountToLoad });
+              cargoLoaded += amountToLoad;
+            }
+            if (cargoLoaded >= sizeDefinition.cargoCapacity) break;
           }
-          if (cargoLoaded >= sizeDefinition.cargoCapacity) break;
+
+          const nextTripWeight = nextTripCargo.reduce((sum, c) => sum + c.amount, 0);
+          const fuelNeeded = calculateFuelCost(distance, nextTripWeight, ship); // Outbound only
+          const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
+
+          if (fuelAvailable >= fuelNeeded) {
+            // Enough fuel now - launch next trip!
+            console.log('[Colonization] Fuel available, resuming mission from origin', { ship: ship.name, fuelAvailable, fuelNeeded }); //TESTING - remove for production
+
+            // Deduct fuel for outbound trip only (return fuel handled at destination)
+            this.gameState.removeResourceFromSystem(origin.id, ResourceId.Fuel, fuelNeeded);
+
+            const travelTimeHours = calculateTravelTime(distance, ship);
+            const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
+
+            mission.waitingForFuel = false;
+
+            this.gameState.updateShip(ship.id, {
+              status: ShipStatus.InTransit,
+              destinationSystemId: destination.id,
+              departureTime: now,
+              arrivalTime: now + travelTimeMs,
+              currentCargo: nextTripCargo,
+              colonizationMission: mission
+            });
+
+            this.gameState.addNotification({
+              type: 'info',
+              title: 'Colonization Resumed',
+              message: `${ship.name} has refueled and is departing for ${destination.name}. Trip ${mission.tripsCompleted + 1}.`
+            });
+          }
         }
 
-        const nextTripWeight = nextTripCargo.reduce((sum, c) => sum + c.amount, 0);
-        const fuelNeeded = calculateFuelCost(distance, nextTripWeight, ship) * 2; // Round trip
-        const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
+        // Handle ships waiting at destination (need to return to origin empty)
+        else if (ship.currentSystemId === mission.destinationSystemId) {
+          const returnFuelNeeded = calculateFuelCost(distance, 0, ship);
+          const fuelAvailable = this.gameState.getSystemResource(destination.id, ResourceId.Fuel);
 
-        if (fuelAvailable >= fuelNeeded) {
-          // Enough fuel now - launch next trip!
-          console.log('[Colonization] Fuel available, resuming mission', { ship: ship.name, fuelAvailable, fuelNeeded }); //TESTING - remove for production
+          if (fuelAvailable >= returnFuelNeeded) {
+            // Enough fuel now - return to origin!
+            console.log('[Colonization] Fuel available, returning to origin from destination', { ship: ship.name, fuelAvailable, fuelNeeded: returnFuelNeeded }); //TESTING - remove for production
 
-          // Deduct fuel
-          this.gameState.removeResourceFromSystem(origin.id, ResourceId.Fuel, fuelNeeded);
+            // Deduct fuel
+            this.gameState.removeResourceFromSystem(destination.id, ResourceId.Fuel, returnFuelNeeded);
 
-          const travelTimeHours = calculateTravelTime(distance, ship);
-          const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
+            const travelTimeHours = calculateTravelTime(distance, ship);
+            const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
 
-          mission.waitingForFuel = false;
+            mission.waitingForFuel = false;
 
-          this.gameState.updateShip(ship.id, {
-            status: ShipStatus.InTransit,
-            destinationSystemId: destination.id,
-            departureTime: now,
-            arrivalTime: now + travelTimeMs,
-            currentCargo: nextTripCargo,
-            colonizationMission: mission
-          });
+            this.gameState.updateShip(ship.id, {
+              status: ShipStatus.InTransit,
+              currentSystemId: destination.id,
+              destinationSystemId: origin.id,
+              departureTime: now,
+              arrivalTime: now + travelTimeMs,
+              currentCargo: [],
+              colonizationMission: mission
+            });
 
-          this.gameState.addNotification({
-            type: 'info',
-            title: 'Colonization Resumed',
-            message: `${ship.name} has refueled and is departing for ${destination.name}. Trip ${mission.tripsCompleted + 1}.`
-          });
+            this.gameState.addNotification({
+              type: 'info',
+              title: 'Returning for Supplies',
+              message: `${ship.name} has refueled and is returning to ${origin.name} for additional supplies.`
+            });
+          }
         }
       }
     }
@@ -484,6 +519,8 @@ export class ColonizationService {
       if (fuelAvailable < returnFuelNeeded) {
         // Not enough fuel at destination - mark as stranded and wait
         console.log('[Colonization] Ship stranded at destination, waiting for fuel', { fuelAvailable, fuelNeeded: returnFuelNeeded }); //TESTING - remove for production
+
+        mission.waitingForFuel = true;
 
         this.gameState.updateShip(shipId, {
           status: ShipStatus.Idle,
@@ -856,21 +893,23 @@ export class ColonizationService {
       if (cargoLoaded >= sizeDefinition.cargoCapacity) break;
     }
 
-    // Subtract loaded cargo from remainingCargo
-    for (const cargo of nextTripCargo) {
-      const remaining = mission.remainingCargo.find(r => r.resourceId === cargo.resourceId);
-      if (remaining) {
-        remaining.amount -= cargo.amount;
-        if (remaining.amount <= 0) {
-          remaining.amount = 0;
-        }
+    // Create new remainingCargo array with updated amounts (immutable update)
+    const updatedRemainingCargo = mission.remainingCargo.map(item => {
+      const loaded = nextTripCargo.find(c => c.resourceId === item.resourceId);
+      if (loaded) {
+        const newAmount = item.amount - loaded.amount;
+        return { resourceId: item.resourceId, amount: Math.max(0, newAmount) };
       }
-    }
+      return { ...item };
+    });
 
-    // Calculate fuel for round trip
+    // Update mission with new remaining cargo
+    mission.remainingCargo = updatedRemainingCargo;
+
+    // Calculate fuel for outbound trip only (return fuel handled at destination)
     const distance = getRouteDist(origin.coordinates, destination.coordinates);
     const nextTripWeight = nextTripCargo.reduce((sum, c) => sum + c.amount, 0);
-    const fuelNeeded = calculateFuelCost(distance, nextTripWeight, ship) * 2; // Round trip
+    const fuelNeeded = calculateFuelCost(distance, nextTripWeight, ship); // Outbound only
     const fuelAvailable = this.gameState.getSystemResource(origin.id, ResourceId.Fuel);
 
     if (fuelAvailable < fuelNeeded) {
@@ -898,7 +937,7 @@ export class ColonizationService {
       return;
     }
 
-    // Have fuel - deduct it and launch next trip
+    // Have fuel - deduct it for outbound trip and launch next trip
     this.gameState.removeResourceFromSystem(origin.id, ResourceId.Fuel, fuelNeeded);
 
     const travelTimeHours = calculateTravelTime(distance, ship);

@@ -1,1 +1,2 @@
 C:\Users\Steven.Yorgason\source\repos\ender42y\IDLE\IDLE-Web\obj\Debug\IDLE-Web.esproj.CoreCompileInputs.cache
+D:\RedWing\IDLE\IDLE-Web\obj\Debug\IDLE-Web.esproj.CoreCompileInputs.cache

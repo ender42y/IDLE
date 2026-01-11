@@ -17,7 +17,8 @@ describe('PrestigeService', () => {
       'setPrestigeState',
       'addNotification',
       'removeFacility',
-      'removeShip'
+      'removeShip',
+      'resetGameStateForPrestige'
     ]);
 
     const homeSystemSpy = jasmine.createSpyObj('HomeSystemService', [
@@ -331,7 +332,7 @@ describe('PrestigeService', () => {
     it('should reset game state', () => {
       service.performPrestige();
 
-      expect((gameState as any)._gameState.update).toHaveBeenCalled();
+      expect(gameState.resetGameStateForPrestige).toHaveBeenCalled();
       expect(homeSystem.initializeHomeSystem).toHaveBeenCalled();
     });
 
