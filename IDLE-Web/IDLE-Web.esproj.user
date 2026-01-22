@@ -7,7 +7,7 @@
   "type": "chrome",
   "request": "launch",
   "url": "http://localhost:61552",
-  "webRoot": "D:\\RedWing\\IDLE\\IDLE-Web"
+  "webRoot": "C:\\Users\\Steven.Yorgason\\source\\repos\\ender42y\\IDLE\\IDLE-Web"
 }</LaunchJsonTarget>
   </PropertyGroup>
 </Project>

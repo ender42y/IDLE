@@ -5,7 +5,7 @@ import { ResourceId } from '../models/resource.model';
 import { Ship, ShipType, ShipSize, ShipTier, ShipStatus } from '../models/ship.model';
 import { StarSystem, SystemRarity, SystemState } from '../models/star-system.model';
 import { CelestialBody, BodyType } from '../models/celestial-body.model';
-import { FacilityId } from '../models/facility.model';
+import { FacilityId, FACILITY_DEFINITIONS } from '../models/facility.model';
 
 describe('ColonizationService', () => {
   let service: ColonizationService;
@@ -670,8 +670,46 @@ describe('ColonizationService', () => {
 
       const system = gameStateService.getSystem(testDestinationSystem.id)!;
       expect(system.colonized).toBe(true);
-      expect(system.totalPopulation).toBe(100);
+      // Population should be set to Trade Outpost's populationFloor per GDD 10.10
+      const tradeOutpostDef = FACILITY_DEFINITIONS[FacilityId.TradeOutpost];
+      expect(system.totalPopulation).toBe(tradeOutpostDef.populationFloor);
       expect(system.hasTradeStation).toBe(true);
+    });
+
+    it('should consume colonization resources when building Trade Outpost', () => {
+      // Use Heavy freighter to deliver minimum requirements in one trip
+      const heavyFreighter: Ship = {
+        ...testFreighter,
+        id: 'heavy-freighter-resources',
+        size: ShipSize.Heavy,
+        cargoCapacity: 2000
+      };
+      gameStateService.addShip(heavyFreighter);
+
+      const cargo = [
+        { resourceId: ResourceId.Steel, amount: 100 },
+        { resourceId: ResourceId.GlassCeramics, amount: 50 },
+        { resourceId: ResourceId.PreparedFoods, amount: 100 },
+        { resourceId: ResourceId.PurifiedWater, amount: 50 }
+      ];
+
+      gameStateService.addResourceToSystem(testOriginSystem.id, ResourceId.Steel, 100);
+      gameStateService.addResourceToSystem(testOriginSystem.id, ResourceId.GlassCeramics, 50);
+      gameStateService.addResourceToSystem(testOriginSystem.id, ResourceId.PreparedFoods, 100);
+      gameStateService.addResourceToSystem(testOriginSystem.id, ResourceId.PurifiedWater, 50);
+      gameStateService.addResourceToSystem(testOriginSystem.id, ResourceId.Fuel, 10000);
+
+      service.sendColonizationMission(heavyFreighter.id, testDestinationSystem.id, cargo, testBody.id);
+
+      gameStateService.updateShip(heavyFreighter.id, { arrivalTime: Date.now() - 1000 });
+
+      service.processTick(1000);
+
+      // Verify colonization resources were consumed per GDD 14.8 (Trade Outpost starts empty)
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.Steel)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.GlassCeramics)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.PreparedFoods)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.PurifiedWater)).toBe(0);
     });
 
     it('should convert Colony Ship to Trade Outpost when colonization completes', () => {
@@ -710,6 +748,11 @@ describe('ColonizationService', () => {
 
       expect(tradeOutpost).toBeDefined();
       expect(colonyShip).toBeUndefined();
+
+      // Verify usedOrbitalSlots is correct after Colony Ship -> Trade Outpost conversion
+      expect(body.usedOrbitalSlots).toBe(1);
+      // Verify no orphan facility IDs
+      expect(body.facilityIds.every(id => gameStateService.getFacility(id) !== undefined)).toBe(true);
     });
 
     it('should clear mission and set ship to idle when colonization completes', () => {
@@ -1019,7 +1062,9 @@ describe('ColonizationService', () => {
       // Verify colonization is complete
       const system = gameStateService.getSystem(testDestinationSystem.id)!;
       expect(system.colonized).toBe(true);
-      expect(system.totalPopulation).toBe(100);
+      // Population should be set to Trade Outpost's populationFloor per GDD 10.10
+      const tradeOutpostDef = FACILITY_DEFINITIONS[FacilityId.TradeOutpost];
+      expect(system.totalPopulation).toBe(tradeOutpostDef.populationFloor);
       expect(system.hasTradeStation).toBe(true);
 
       // Verify Colony Ship was converted to Trade Outpost
@@ -1030,6 +1075,20 @@ describe('ColonizationService', () => {
 
       expect(tradeOutpost).toBeDefined();
       expect(colonyShip).toBeUndefined();
+
+      // Verify usedOrbitalSlots is correct (Colony Ship replaced by Trade Outpost = net zero change)
+      // This was a bug where stale state caused usedOrbitalSlots to double-count
+      expect(body.usedOrbitalSlots).toBe(1);
+
+      // Verify no orphan facility IDs (all facilityIds should resolve to valid facilities)
+      const allFacilitiesValid = body.facilityIds.every(id => gameStateService.getFacility(id) !== undefined);
+      expect(allFacilitiesValid).toBe(true);
+
+      // Verify colonization resources were consumed per GDD 14.8 (Trade Outpost starts empty)
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.Steel)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.GlassCeramics)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.PreparedFoods)).toBe(0);
+      expect(gameStateService.getSystemResource(testDestinationSystem.id, ResourceId.PurifiedWater)).toBe(0);
 
       // Verify ship is now idle and mission is cleared
       ship = gameStateService.getShip(testFreighter.id)!;

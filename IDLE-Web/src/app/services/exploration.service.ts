@@ -11,6 +11,7 @@ import {
 } from '../models/ship.model';
 import { ResourceId } from '../models/resource.model';
 import { getDistanceFromHome, getRouteDist, SystemRarity } from '../models/star-system.model';
+import { TESTING_CONFIG } from '../config/testing.config';
 
 /**
  * Manages scout missions that discover and survey new star systems.
@@ -156,7 +157,7 @@ export class ExplorationService {
     // Calculate timing based on distance and ship speed
     // With 300 ly/h and 1 min exploration, first 10ly mission = ~5 min
     const prestigeSpeedModifier = this.prestigeService.getShipSpeedModifier();
-    const scoutSpeed = ((ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1) * prestigeSpeedModifier) * 20; //TESTING - production value: * 1
+    const scoutSpeed = ((ship.scoutSpeed ?? 300) * (ship.speedModifier ?? 1) * prestigeSpeedModifier) * TESTING_CONFIG.scoutSpeedMultiplier;
     const outboundTimeHours = distance / scoutSpeed;
 
     const explorationTimeHours = 1 / 60; // 1 minute to explore

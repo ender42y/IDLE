@@ -5,6 +5,7 @@
  */
 
 import { ResourceId } from './resource.model';
+import { TESTING_CONFIG } from '../config/testing.config';
 
 /**
  * High-level ship classification determining available missions.
@@ -406,8 +407,7 @@ export function calculateFuelCost(
 
 /**
  * Calculate travel time for a trip based on distance and ship speed.
- * TESTING: Currently multiplied by 100x for faster QA testing.
- * Formula: distance / (ship_speed × speed_modifier) = hours
+ * Formula: distance / (ship_speed × speed_modifier × testing_multiplier) = hours
  *
  * @param distance - Travel distance in light-years
  * @param ship - Ship making the journey
@@ -418,11 +418,7 @@ export function calculateTravelTime(
   ship: Ship
 ): number {
   const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
-  let effectiveSpeed = sizeDefinition.speed * ship.speedModifier;
-
-  // TESTING: speed up freighters 10x to accelerate QA iteration
-  effectiveSpeed *= 100;
-  console.log("travel times sped up for testing");
+  const effectiveSpeed = sizeDefinition.speed * ship.speedModifier * TESTING_CONFIG.freighterSpeedMultiplier;
 
   return distance / effectiveSpeed; // hours
 }

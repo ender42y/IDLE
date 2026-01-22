@@ -10,7 +10,8 @@ import {
   calculateTravelTime
 } from '../models/ship.model';
 import { getRouteDist } from '../models/star-system.model';
-import { FacilityId, Facility } from '../models/facility.model';
+import { FacilityId, Facility, FACILITY_DEFINITIONS } from '../models/facility.model';
+import { debugLog, debugWarn } from '../config/testing.config';
 
 /**
  * Tracks multi-trip colonization mission state.
@@ -99,10 +100,10 @@ export class ColonizationService {
     const ship = state.ships[shipId];
     const destination = state.systems[destinationSystemId];
 
-    console.log('[Colonization] sendColonizationMission called', { shipId, destinationSystemId, cargo }); //TESTING - remove for production
+    debugLog('Colonization', 'sendColonizationMission called', { shipId, destinationSystemId, cargo });
 
     if (!ship || ship.type !== ShipType.Freighter) {
-      console.log('[Colonization] invalid ship or wrong type', ship); //TESTING - remove for production
+      debugLog('Colonization', 'invalid ship or wrong type', ship);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Invalid Ship',
@@ -112,7 +113,7 @@ export class ColonizationService {
     }
 
     if (ship.status !== ShipStatus.Idle) {
-      console.log('[Colonization] ship busy', ship.status); //TESTING - remove for production
+      debugLog('Colonization', 'ship busy', ship.status);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Ship Busy',
@@ -122,7 +123,7 @@ export class ColonizationService {
     }
 
     if (!destination || !destination.discovered) {
-      console.log('[Colonization] invalid destination or not discovered', destination); //TESTING - remove for production
+      debugLog('Colonization', 'invalid destination or not discovered', destination);
       this.gameState.addNotification({
         type: 'warning',
         title: 'Invalid Destination',
@@ -154,20 +155,20 @@ export class ColonizationService {
       });
 
       // Still allow the mission, but warn the user
-      console.warn('[Colonization] Cargo below minimum requirements:', missing); //TESTING - remove for production
+      debugWarn('Colonization', 'Cargo below minimum requirements:', missing);
     }
 
     // Check and reserve ALL cargo from origin system immediately
     const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
     const totalCargoAmount = cargo.reduce((sum, c) => sum + c.amount, 0);
 
-    console.log('[Colonization] Total cargo needed:', totalCargoAmount, 'Ship capacity:', sizeDefinition.cargoCapacity); //TESTING - remove for production
+    debugLog('Colonization', 'Total cargo needed:', totalCargoAmount, 'Ship capacity:', sizeDefinition.cargoCapacity);
 
     // Validate all resources are available at origin
     for (const item of cargo) {
       const available = this.gameState.getSystemResource(origin.id, item.resourceId);
       if (available < item.amount) {
-        console.log('[Colonization] insufficient resource at origin', { resourceId: item.resourceId, available, needed: item.amount }); //TESTING - remove for production
+        debugLog('Colonization', 'insufficient resource at origin', { resourceId: item.resourceId, available, needed: item.amount });
         const name = RESOURCE_DEFINITIONS[item.resourceId]?.name ?? item.resourceId;
         this.gameState.addNotification({
           type: 'warning',
@@ -206,7 +207,7 @@ export class ColonizationService {
       // to ensure everything goes into remainingCargo
     }
 
-    console.log('[Colonization] First trip cargo:', firstTripCargo, 'Remaining:', remainingCargo); //TESTING - remove for production
+    debugLog('Colonization', 'First trip cargo:', firstTripCargo, 'Remaining:', remainingCargo);
 
     // Calculate fuel cost for first trip
     const distance = getRouteDist(origin.coordinates, destination.coordinates);
@@ -216,7 +217,7 @@ export class ColonizationService {
 
     // Check if we have enough fuel for the first trip
     if (fuelAvailable < fuelNeeded) {
-      console.log('[Colonization] insufficient fuel for first trip, entering wait state', { fuelAvailable, fuelNeeded }); //TESTING - remove for production
+      debugLog('Colonization', 'insufficient fuel for first trip, entering wait state', { fuelAvailable, fuelNeeded });
 
       // Put cargo back and set ship to waiting state
       for (const item of cargo) {
@@ -274,8 +275,7 @@ export class ColonizationService {
     });
 
     const tripsNeeded = Math.ceil(totalCargoAmount / sizeDefinition.cargoCapacity);
-    //TESTING - remove for production
-    console.log('[Colonization] mission launched', {
+    debugLog('Colonization', 'mission launched', {
       shipId,
       destinationId: destination.id,
       arrivalTime,
@@ -357,7 +357,7 @@ export class ColonizationService {
 
           if (fuelAvailable >= fuelNeeded) {
             // Enough fuel now - launch next trip!
-            console.log('[Colonization] Fuel available, resuming mission from origin', { ship: ship.name, fuelAvailable, fuelNeeded }); //TESTING - remove for production
+            debugLog('Colonization', 'Fuel available, resuming mission from origin', { ship: ship.name, fuelAvailable, fuelNeeded });
 
             // Deduct fuel for outbound trip only (return fuel handled at destination)
             this.gameState.removeResourceFromSystem(origin.id, ResourceId.Fuel, fuelNeeded);
@@ -391,7 +391,7 @@ export class ColonizationService {
 
           if (fuelAvailable >= returnFuelNeeded) {
             // Enough fuel now - return to origin!
-            console.log('[Colonization] Fuel available, returning to origin from destination', { ship: ship.name, fuelAvailable, fuelNeeded: returnFuelNeeded }); //TESTING - remove for production
+            debugLog('Colonization', 'Fuel available, returning to origin from destination', { ship: ship.name, fuelAvailable, fuelNeeded: returnFuelNeeded });
 
             // Deduct fuel
             this.gameState.removeResourceFromSystem(destination.id, ResourceId.Fuel, returnFuelNeeded);
@@ -435,8 +435,7 @@ export class ColonizationService {
 
     const mission = ship.colonizationMission;
     const origin = state.systems[mission.originSystemId];
-    //TESTING - remove for production
-    console.log('[Colonization] completing trip', {
+    debugLog('Colonization', 'completing trip', {
       shipId,
       destinationId: destination.id,
       currentCargo: ship.currentCargo,
@@ -482,7 +481,7 @@ export class ColonizationService {
             facilityIds: [...targetBody.facilityIds, colonyShipId]
           });
 
-          console.log('[Colonization] Colony Ship established on', targetBody.name); //TESTING - remove for production
+          debugLog('Colonization', 'Colony Ship established on', targetBody.name);
 
           this.gameState.addNotification({
             type: 'info',
@@ -501,7 +500,7 @@ export class ColonizationService {
 
     if (hasMoreCargo) {
       // More trips needed - return to origin to pick up more
-      console.log('[Colonization] More cargo to deliver, returning to origin'); //TESTING - remove for production
+      debugLog('Colonization', 'More cargo to deliver, returning to origin');
 
       if (!origin) {
         console.error('[Colonization] Origin system not found!');
@@ -518,7 +517,7 @@ export class ColonizationService {
       // Check if we have fuel at destination for return trip
       if (fuelAvailable < returnFuelNeeded) {
         // Not enough fuel at destination - mark as stranded and wait
-        console.log('[Colonization] Ship stranded at destination, waiting for fuel', { fuelAvailable, fuelNeeded: returnFuelNeeded }); //TESTING - remove for production
+        debugLog('Colonization', 'Ship stranded at destination, waiting for fuel', { fuelAvailable, fuelNeeded: returnFuelNeeded });
 
         mission.waitingForFuel = true;
 
@@ -567,11 +566,11 @@ export class ColonizationService {
 
     } else {
       // All cargo delivered - check if requirements are met before colonizing
-      console.log('[Colonization] All cargo delivered, checking requirements'); //TESTING - remove for production
+      debugLog('Colonization', 'All cargo delivered, checking requirements');
 
       // Validate that delivered cargo meets minimum colonization requirements
       if (!this.meetsColonizationRequirements(mission.deliveredCargo)) {
-        console.warn('[Colonization] Delivered cargo does not meet minimum requirements', mission.deliveredCargo); //TESTING - remove for production
+        debugWarn('Colonization', 'Delivered cargo does not meet minimum requirements', mission.deliveredCargo);
 
         // Determine what's missing
         const requirements = this.getColonizationRequirements();
@@ -686,39 +685,37 @@ export class ColonizationService {
         return;
       }
 
-      console.log('[Colonization] Requirements met, colonizing system'); //TESTING - remove for production
+      debugLog('Colonization', 'Requirements met, colonizing system');
 
       // Mark system as colonized if not already
       if (!destination.colonized) {
-        const initialPopulation = 100;
+        // Get the Trade Outpost's population floor - this is the initial population per GDD 10.10
+        const tradeOutpostDef = FACILITY_DEFINITIONS[FacilityId.TradeOutpost];
+        const initialPopulation = tradeOutpostDef.populationFloor;
 
         this.gameState.updateSystem(destination.id, {
           colonized: true,
           totalPopulation: initialPopulation
         });
 
+        // Consume colonization resources from system storage (per GDD 14.8 - Trade Outpost starts empty)
+        const requirements = this.getColonizationRequirements();
+        for (const req of requirements) {
+          this.gameState.removeResourceFromSystem(destination.id, req.resourceId, req.amount);
+        }
+        debugLog('Colonization', 'Consumed colonization resources from destination storage');
+
         // Build initial starport by converting Colony Ship
         const starportBodyId = mission.starportBodyId || ship.colonizationTargetBodyId;
         if (starportBodyId) {
           const targetBody = state.bodies[starportBodyId];
           if (targetBody && targetBody.systemId === destination.id) {
-            // Find and remove the Colony Ship
+            // Find the Colony Ship to replace
             const colonyShipFacility = targetBody.facilityIds
               .map(id => state.facilities[id])
               .find(f => f && f.definitionId === FacilityId.ColonyShip);
 
-            if (colonyShipFacility) {
-              // Remove Colony Ship (it will be replaced by Trade Outpost)
-              const newFacilityIds = targetBody.facilityIds.filter(id => id !== colonyShipFacility.id);
-              this.gameState.updateBody(starportBodyId, {
-                usedOrbitalSlots: targetBody.usedOrbitalSlots - 1,
-                facilityIds: newFacilityIds
-              });
-              this.gameState.removeFacility(colonyShipFacility.id);
-              console.log('[Colonization] Colony Ship removed from', targetBody.name); //TESTING - remove for production
-            }
-
-            // Create Trade Outpost directly (resources already delivered)
+            // Create Trade Outpost directly (colonization resources consumed above)
             const tradeOutpostId = this.gameState.generateId();
             const tradeOutpost: Facility = {
               id: tradeOutpostId,
@@ -731,11 +728,21 @@ export class ColonizationService {
 
             this.gameState.addFacility(tradeOutpost);
 
-            // Update body slot usage
-            this.gameState.updateBody(starportBodyId, {
-              usedOrbitalSlots: targetBody.usedOrbitalSlots + 1,
-              facilityIds: [...targetBody.facilityIds, tradeOutpostId]
-            });
+            if (colonyShipFacility) {
+              // Replace Colony Ship with Trade Outpost in a single update (net zero slot change)
+              this.gameState.removeFacility(colonyShipFacility.id);
+              this.gameState.updateBody(starportBodyId, {
+                facilityIds: [...targetBody.facilityIds.filter(id => id !== colonyShipFacility.id), tradeOutpostId]
+              });
+              debugLog('Colonization', 'Colony Ship replaced with Trade Outpost on', targetBody.name);
+            } else {
+              // No Colony Ship found - just add Trade Outpost
+              this.gameState.updateBody(starportBodyId, {
+                usedOrbitalSlots: targetBody.usedOrbitalSlots + 1,
+                facilityIds: [...targetBody.facilityIds, tradeOutpostId]
+              });
+              debugLog('Colonization', 'Trade Outpost established on', targetBody.name);
+            }
 
             // Update system trade station status
             this.gameState.updateSystem(destination.id, {
@@ -744,41 +751,33 @@ export class ColonizationService {
             });
 
             // Increase resource capacity on the system
-            if (destination.resources && destination.resources.length > 0) {
+            // IMPORTANT: Re-fetch the current destination state to get updated resource amounts
+            // (we consumed resources above, so the original `destination` variable is stale)
+            const currentDestination = this.gameState.getSystem(destination.id);
+            if (currentDestination?.resources && currentDestination.resources.length > 0) {
               const extra = 5000; // Trade Outpost tier 1 capacity
-              const newResources = destination.resources.map(r => ({
+              const newResources = currentDestination.resources.map(r => ({
                 ...r,
                 capacity: (r.capacity ?? 0) + extra
               }));
               this.gameState.updateSystem(destination.id, { resources: newResources });
             }
-
-            console.log('[Colonization] Trade Outpost established on', targetBody.name); //TESTING - remove for production
           } else {
-            console.warn('[Colonization] Invalid colonization target body', starportBodyId);
+            debugWarn('Colonization', 'Invalid colonization target body', starportBodyId);
           }
         } else {
           // Fallback: build on first available body with orbital slots
-          console.warn('[Colonization] No target body specified, using fallback');
+          debugWarn('Colonization', 'No target body specified, using fallback');
           const bodiesWithOrbitalSlots = destination.bodyIds
             .map(id => state.bodies[id])
             .filter(b => b && b.orbitalSlots > 0);
           if (bodiesWithOrbitalSlots.length > 0) {
             const fallbackBody = bodiesWithOrbitalSlots[0];
 
-            // Find and remove the Colony Ship
+            // Find the Colony Ship to replace
             const colonyShipFacility = fallbackBody.facilityIds
               .map(id => state.facilities[id])
               .find(f => f && f.definitionId === FacilityId.ColonyShip);
-
-            if (colonyShipFacility) {
-              const newFacilityIds = fallbackBody.facilityIds.filter(id => id !== colonyShipFacility.id);
-              this.gameState.updateBody(fallbackBody.id, {
-                usedOrbitalSlots: fallbackBody.usedOrbitalSlots - 1,
-                facilityIds: newFacilityIds
-              });
-              this.gameState.removeFacility(colonyShipFacility.id);
-            }
 
             // Create Trade Outpost directly
             const tradeOutpostId = this.gameState.generateId();
@@ -792,17 +791,27 @@ export class ColonizationService {
             };
 
             this.gameState.addFacility(tradeOutpost);
-            this.gameState.updateBody(fallbackBody.id, {
-              usedOrbitalSlots: fallbackBody.usedOrbitalSlots + 1,
-              facilityIds: [...fallbackBody.facilityIds, tradeOutpostId]
-            });
+
+            if (colonyShipFacility) {
+              // Replace Colony Ship with Trade Outpost in a single update (net zero slot change)
+              this.gameState.removeFacility(colonyShipFacility.id);
+              this.gameState.updateBody(fallbackBody.id, {
+                facilityIds: [...fallbackBody.facilityIds.filter(id => id !== colonyShipFacility.id), tradeOutpostId]
+              });
+              debugLog('Colonization', 'Colony Ship replaced with fallback Trade Outpost on', fallbackBody.name);
+            } else {
+              // No Colony Ship found - just add Trade Outpost
+              this.gameState.updateBody(fallbackBody.id, {
+                usedOrbitalSlots: fallbackBody.usedOrbitalSlots + 1,
+                facilityIds: [...fallbackBody.facilityIds, tradeOutpostId]
+              });
+              debugLog('Colonization', 'Built fallback Trade Outpost on', fallbackBody.name);
+            }
 
             this.gameState.updateSystem(destination.id, {
               hasTradeStation: true,
               tradeStationTier: 1
             });
-
-            console.log('[Colonization] Built fallback Trade Outpost on', fallbackBody.name); //TESTING - remove for production
           }
         }
 
@@ -853,8 +862,7 @@ export class ColonizationService {
       return;
     }
 
-    //TESTING - remove for production
-    console.log('[Colonization] Ship arrived at origin, loading next batch', {
+    debugLog('Colonization', 'Ship arrived at origin, loading next batch', {
       shipId,
       remainingCargo: mission.remainingCargo
     });
@@ -863,7 +871,7 @@ export class ColonizationService {
     const hasMoreCargo = mission.remainingCargo.some(c => c.amount > 0);
     if (!hasMoreCargo) {
       // This shouldn't happen, but handle it gracefully
-      console.warn('[Colonization] Ship arrived at origin but no cargo remaining');
+      debugWarn('Colonization', 'Ship arrived at origin but no cargo remaining');
       this.gameState.updateShip(shipId, {
         status: ShipStatus.Idle,
         currentSystemId: origin.id,
@@ -914,7 +922,7 @@ export class ColonizationService {
 
     if (fuelAvailable < fuelNeeded) {
       // Not enough fuel - wait at origin
-      console.log('[Colonization] Waiting for fuel at origin', { fuelAvailable, fuelNeeded }); //TESTING - remove for production
+      debugLog('Colonization', 'Waiting for fuel at origin', { fuelAvailable, fuelNeeded });
 
       mission.waitingForFuel = true;
 

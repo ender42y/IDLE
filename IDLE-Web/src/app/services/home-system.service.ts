@@ -22,6 +22,7 @@ import {
   ShipStatus
 } from '../models/ship.model';
 import { ResourceId, ResourceStock } from '../models/resource.model';
+import { TESTING_CONFIG } from '../config/testing.config';
 
 @Injectable({
   providedIn: 'root'
@@ -82,15 +83,17 @@ export class HomeSystemService {
 
   private createStartingResources(): ResourceStock[] {
     // GDD v6 Section 2.5: Starting Resources
-    return [ //TESTING 10x for testing purposes
-      { resourceId: ResourceId.Credits, amount: 100000, capacity: 1000000 },
-      { resourceId: ResourceId.Steel, amount: 5000, capacity: 10000 },
-      { resourceId: ResourceId.GlassCeramics, amount: 2000, capacity: 10000 },
-      { resourceId: ResourceId.PurifiedWater, amount: 3000, capacity: 10000 },
-      { resourceId: ResourceId.Fuel, amount: 2000, capacity: 100000 },
-      { resourceId: ResourceId.PreparedFoods, amount: 2000, capacity: 10000 },
-      { resourceId: ResourceId.BasicGoods, amount: 1000, capacity: 10000 },
-      { resourceId: ResourceId.Components, amount: 500, capacity: 10000 }
+    // Base values multiplied by TESTING_CONFIG.startingResourcesMultiplier for faster iteration
+    const mult = TESTING_CONFIG.startingResourcesMultiplier;
+    return [
+      { resourceId: ResourceId.Credits, amount: 10000 * mult, capacity: 1000000 },
+      { resourceId: ResourceId.Steel, amount: 500 * mult, capacity: 10000 },
+      { resourceId: ResourceId.GlassCeramics, amount: 200 * mult, capacity: 10000 },
+      { resourceId: ResourceId.PurifiedWater, amount: 300 * mult, capacity: 10000 },
+      { resourceId: ResourceId.Fuel, amount: 200 * mult, capacity: 100000 },
+      { resourceId: ResourceId.PreparedFoods, amount: 200 * mult, capacity: 10000 },
+      { resourceId: ResourceId.BasicGoods, amount: 100 * mult, capacity: 10000 },
+      { resourceId: ResourceId.Components, amount: 50 * mult, capacity: 10000 }
     ];
   }
 
