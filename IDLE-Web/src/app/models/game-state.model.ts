@@ -10,6 +10,7 @@ import { CelestialBody } from './celestial-body.model';
 import { Facility } from './facility.model';
 import { Ship, TradeRoute, ScoutMission, TradeTrip, TradeMission } from './ship.model';
 import { PrestigeState, INITIAL_PRESTIGE_STATE } from './prestige.model';
+import { TransportMission } from './transport-mission.model';
 
 /**
  * Player-configurable game settings.
@@ -81,6 +82,7 @@ export interface GameState {
   scoutMissions: Record<string, ScoutMission>;
   activeTrips: Record<string, TradeTrip>;
   tradeMissions: Record<string, TradeMission>; // GDD v6: One-time trade missions
+  transportMissions: Record<string, TransportMission>; // GDD v6 Section 15: Supply transport
 
   // Discovery frontier
   explorationFrontier: { x: number; y: number }[];

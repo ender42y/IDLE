@@ -62,6 +62,12 @@ export const TESTING_CONFIG = {
    * Production: false, Testing: true
    */
   debugTrade: TESTING_ENABLED,
+
+  /**
+   * Enable verbose debug logging for supply transport service.
+   * Production: false, Testing: true
+   */
+  debugSupplyTransport: TESTING_ENABLED,
 } as const;
 
 /**

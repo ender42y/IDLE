@@ -174,6 +174,186 @@
         <p class="no-freighters">No freighters available</p>
       }
     </div>
+
+    <!-- Transport Mission Controls -->
+    <div class="transport-controls">
+      <h4>Supply Transport</h4>
+      @if (idleFreighters().length > 0 && colonizedSystems().length > 1) {
+        <button mat-raised-button color="accent" class="transport-btn"
+                (click)="toggleTransportPanel()">
+          <mat-icon>local_shipping</mat-icon>
+          {{ showTransportPanel() ? 'Cancel' : 'New Transport Mission' }}
+        </button>
+
+        @if (showTransportPanel()) {
+          <div class="transport-panel">
+            <!-- Step 1: Mission Type -->
+            <div class="transport-step">
+              <h5>1. Mission Type</h5>
+              <div class="mission-type-selector">
+                <button class="type-btn" [class.selected]="selectedMissionType() === TransportMissionType.OneWay"
+                        (click)="selectMissionType(TransportMissionType.OneWay)">
+                  One-Way<span class="type-desc">Deliver & stay</span>
+                </button>
+                <button class="type-btn" [class.selected]="selectedMissionType() === TransportMissionType.RoundTrip"
+                        (click)="selectMissionType(TransportMissionType.RoundTrip)">
+                  Round-Trip<span class="type-desc">Deliver & return</span>
+                </button>
+                <button class="type-btn" [class.selected]="selectedMissionType() === TransportMissionType.RecurringRoute"
+                        (click)="selectMissionType(TransportMissionType.RecurringRoute)">
+                  Trade Route<span class="type-desc">Loop forever</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Select Ship -->
+            <div class="transport-step">
+              <h5>2. Select Freighter</h5>
+              <div class="selection-list">
+                @for (freighter of idleFreighters(); track freighter.id) {
+                  <div class="selection-item" [class.selected]="selectedTransportShipId() === freighter.id"
+                       (click)="selectTransportShip(freighter.id)">
+                    <span>{{ freighter.name }}</span>
+                    <span class="ship-location">&#64; {{ getSystemName(freighter.currentSystemId) }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Step 3: Select Destination -->
+            @if (selectedTransportShipId()) {
+              <div class="transport-step">
+                <h5>3. Destination System</h5>
+                <div class="selection-list">
+                  @for (system of colonizedSystems(); track system.id) {
+                    @if (system.id !== ships()[selectedTransportShipId()!].currentSystemId) {
+                      <div class="selection-item" [class.selected]="selectedDestinationId() === system.id"
+                           (click)="selectDestinationSystem(system.id)">
+                        {{ system.name }}
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Step 4: Outbound Cargo -->
+            @if (selectedDestinationId()) {
+              <div class="transport-step">
+                <h5>4. Outbound Cargo</h5>
+                <div class="cargo-config">
+                  @for (item of outboundCargo(); track $index) {
+                    <div class="cargo-item">
+                      <select [value]="item.resourceId"
+                              (change)="updateOutboundCargoItem($index, $any($event.target).value, item.amount)">
+                        @for (resource of availableResourcesAtShip(); track resource.resourceId) {
+                          <option [value]="resource.resourceId">
+                            {{ getTransportResourceName(resource.resourceId) }} ({{ resource.amount | number:'1.0-0' }}t)
+                          </option>
+                        }
+                      </select>
+                      <input type="number" [value]="item.amount" min="0" placeholder="Amount"
+                             (input)="updateOutboundCargoItem($index, item.resourceId, +$any($event.target).value)">
+                      <button mat-icon-button (click)="removeOutboundCargoItem($index)">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                  }
+                  <button mat-stroked-button (click)="addOutboundCargoItem()">
+                    <mat-icon>add</mat-icon> Add Resource
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Step 5: Return Cargo (if not one-way) -->
+            @if (selectedMissionType() !== TransportMissionType.OneWay && selectedDestinationId()) {
+              <div class="transport-step">
+                <h5>5. Return Cargo (Optional)</h5>
+                <div class="cargo-config">
+                  @for (item of returnCargo(); track $index) {
+                    <div class="cargo-item">
+                      <select [value]="item.resourceId"
+                              (change)="updateReturnCargoItem($index, $any($event.target).value, item.amount)">
+                        @for (resourceId of resourceIds; track resourceId) {
+                          <option [value]="resourceId">{{ getTransportResourceName(resourceId) }}</option>
+                        }
+                      </select>
+                      <input type="number" [value]="item.amount" min="0" placeholder="Amount"
+                             (input)="updateReturnCargoItem($index, item.resourceId, +$any($event.target).value)">
+                      <button mat-icon-button (click)="removeReturnCargoItem($index)">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                  }
+                  <button mat-stroked-button (click)="addReturnCargoItem()">
+                    <mat-icon>add</mat-icon> Add Resource
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Send Button -->
+            <div class="transport-actions">
+              <button mat-raised-button color="primary" class="send-btn"
+                      [disabled]="!canSendTransportMission()"
+                      (click)="sendTransportMission()">
+                Launch Mission
+              </button>
+            </div>
+          </div>
+        }
+      } @else if (colonizedSystems().length < 2) {
+        <p class="no-destinations">Need at least 2 colonized systems</p>
+      } @else {
+        <p class="no-freighters">No freighters available</p>
+      }
+
+      <!-- Active Missions List -->
+      @if (activeTransportMissions().length > 0) {
+        <div class="active-transport-missions">
+          <h5>Active Missions</h5>
+          @for (mission of activeTransportMissions(); track mission.id) {
+            <div class="transport-mission-card">
+              <div class="mission-header">
+                <span class="mission-ship">{{ getMissionShipName(mission) }}</span>
+                <span class="mission-type-badge">{{ mission.missionType }}</span>
+              </div>
+              <div class="mission-route">
+                {{ getSystemName(mission.originSystemId) }}
+                @if (mission.missionType === TransportMissionType.RecurringRoute) {
+                  <span class="arrow">⟲</span>
+                } @else if (mission.missionType === TransportMissionType.RoundTrip) {
+                  <span class="arrow">↔</span>
+                } @else {
+                  <span class="arrow">→</span>
+                }
+                {{ getSystemName(mission.destinationSystemId) }}
+              </div>
+              <div class="mission-status">
+                <span class="status-text">{{ getMissionStatusPhase(mission) }}</span>
+                @if (mission.arrivalTime) {
+                  <span class="mission-eta">ETA: {{ formatMissionETA(mission) }}</span>
+                }
+              </div>
+              <div class="mission-cargo">
+                <span class="cargo-label">Cargo:</span>
+                {{ formatTransportCargoDisplay(mission.currentCargo) }}
+              </div>
+              @if (mission.missionType === TransportMissionType.RecurringRoute) {
+                <div class="mission-stats">
+                  <span>Trips: {{ mission.tripsCompleted }}</span>
+                </div>
+              }
+              <button mat-stroked-button color="warn" class="cancel-btn"
+                      (click)="cancelTransportMission(mission.id)">
+                {{ mission.missionType === TransportMissionType.RecurringRoute ? 'Stop Route' : 'Cancel' }}
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
   </div>
 
   <!-- Trade Routes Panel -->

@@ -5,6 +5,7 @@ import { PopulationService } from './population.service';
 import { TradeService } from './trade.service';
 import { ExplorationService } from './exploration.service';
 import { ColonizationService } from './colonization.service';
+import { SupplyTransportService } from './supply-transport.service';
 
 /**
  * Orchestrates the main game simulation loop.
@@ -68,6 +69,7 @@ export class GameLoopService implements OnDestroy {
   private tradeService = inject(TradeService);
   private explorationService = inject(ExplorationService);
   private colonizationService = inject(ColonizationService);
+  private supplyTransportService = inject(SupplyTransportService);
 
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private autoSaveInterval: ReturnType<typeof setInterval> | null = null;
@@ -161,6 +163,7 @@ export class GameLoopService implements OnDestroy {
     this.tradeService.processTick(deltaTime);
     this.explorationService.processTick(deltaTime);
     this.colonizationService.processTick(deltaTime);
+    this.supplyTransportService.processTick(deltaTime);
 
     // Update tick counter
     this._tickCount.update(c => c + 1);

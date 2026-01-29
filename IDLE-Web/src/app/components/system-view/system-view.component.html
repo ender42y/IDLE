@@ -113,8 +113,18 @@
                   class="population-fill"
                   [style.width.%]="(body.population / body.populationCeiling) * 100">
                 </div>
+                @if (body.populationFloor > 0) {
+                  <div
+                    class="population-floor-marker"
+                    [style.left.%]="(body.populationFloor / body.populationCeiling) * 100"
+                    title="Population Floor: {{ body.populationFloor | number }}">
+                  </div>
+                }
                 <span class="population-text">
                   {{ body.population | number }} / {{ body.populationCeiling | number }}
+                  @if (body.populationFloor > 0) {
+                    <span class="population-floor-text">(min: {{ body.populationFloor | number }})</span>
+                  }
                 </span>
               </div>
             </div>

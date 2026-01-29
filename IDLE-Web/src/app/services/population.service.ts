@@ -113,6 +113,9 @@ export class PopulationService {
         standardOfLiving: Math.round(standardOfLiving)
       });
 
+      // Distribute population to bodies proportional to their population ceiling (GDD v6: population distributed by capacity)
+      this.distributePopulationToBodies(system.id, Math.round(newPopulation));
+
       // Check for state changes based on conditions (pass deltaHours so comparisons use the same time basis)
       this.checkSystemStateChanges(system, consumed, deltaHours);
     }
@@ -427,6 +430,62 @@ export class PopulationService {
     }
 
     return 1 + Math.log10(system.totalPopulation / 1000);
+  }
+
+  /**
+   * Distribute system population to individual bodies proportional to their ceiling capacity
+   * (GDD v6: population distributed by capacity - bodies with higher capacity get more population)
+   */
+  private distributePopulationToBodies(systemId: string, totalPopulation: number): void {
+    const state = this.gameState.getState();
+    const system = state.systems[systemId];
+    if (!system) return;
+
+    // Calculate total ceiling capacity across all bodies
+    let totalCeiling = 0;
+    const bodyPopulationCeilings: Record<string, number> = {};
+
+    for (const bodyId of system.bodyIds) {
+      const body = state.bodies[bodyId];
+      if (!body) continue;
+
+      const bodyTypeDef = BODY_TYPE_DEFINITIONS[body.type];
+      const bodyMultiplier = bodyTypeDef.populationMultiplier;
+
+      let bodyCeiling = 0;
+      // Sum facility ceilings for this body
+      for (const facilityId of body.facilityIds) {
+        const facility = state.facilities[facilityId];
+        if (!facility || !facility.operational) continue;
+
+        const facilityDef = FACILITY_DEFINITIONS[facility.definitionId];
+        if (facilityDef) {
+          bodyCeiling += facilityDef.populationCeiling * bodyMultiplier;
+        }
+      }
+
+      // Apply feature bonuses to ceiling
+      for (const feature of body.features) {
+        const featureDef = FEATURE_DEFINITIONS[feature];
+        if (featureDef?.bonus.populationBonus && bodyCeiling > 0) {
+          bodyCeiling *= (1 + featureDef.bonus.populationBonus);
+        }
+      }
+
+      bodyPopulationCeilings[bodyId] = bodyCeiling;
+      totalCeiling += bodyCeiling;
+    }
+
+    // Distribute population proportional to each body's ceiling capacity
+    if (totalCeiling > 0) {
+      for (const bodyId of system.bodyIds) {
+        const bodyCeiling = bodyPopulationCeilings[bodyId];
+        if (bodyCeiling > 0) {
+          const bodyPopulation = Math.round((bodyCeiling / totalCeiling) * totalPopulation);
+          this.gameState.updateBody(bodyId, { population: bodyPopulation });
+        }
+      }
+    }
   }
 
   /**

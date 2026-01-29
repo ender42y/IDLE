@@ -11,6 +11,7 @@ import {
 } from '../models/ship.model';
 import { getRouteDist } from '../models/star-system.model';
 import { FacilityId, Facility, FACILITY_DEFINITIONS } from '../models/facility.model';
+import { BODY_TYPE_DEFINITIONS } from '../models/celestial-body.model';
 import { debugLog, debugWarn } from '../config/testing.config';
 
 /**
@@ -162,7 +163,7 @@ export class ColonizationService {
     const sizeDefinition = SHIP_SIZE_DEFINITIONS[ship.size];
     const totalCargoAmount = cargo.reduce((sum, c) => sum + c.amount, 0);
 
-    debugLog('Colonization', 'Total cargo needed:', totalCargoAmount, 'Ship capacity:', sizeDefinition.cargoCapacity);
+    debugLog('Colonization', 'Total cargo needed:', totalCargoAmount);
 
     // Validate all resources are available at origin
     for (const item of cargo) {
@@ -207,7 +208,7 @@ export class ColonizationService {
       // to ensure everything goes into remainingCargo
     }
 
-    debugLog('Colonization', 'First trip cargo:', firstTripCargo, 'Remaining:', remainingCargo);
+    debugLog('Colonization', 'First trip cargo:', firstTripCargo);
 
     // Calculate fuel cost for first trip
     const distance = getRouteDist(origin.coordinates, destination.coordinates);
@@ -707,12 +708,20 @@ export class ColonizationService {
 
         // Build initial starport by converting Colony Ship
         const starportBodyId = mission.starportBodyId || ship.colonizationTargetBodyId;
+
+        // Initialize body population to the initial population (will be distributed properly on next tick)
         if (starportBodyId) {
-          const targetBody = state.bodies[starportBodyId];
-          if (targetBody && targetBody.systemId === destination.id) {
-            // Find the Colony Ship to replace
-            const colonyShipFacility = targetBody.facilityIds
-              .map(id => state.facilities[id])
+          this.gameState.updateBody(starportBodyId, { population: initialPopulation });
+        }
+        if (starportBodyId) {
+          // IMPORTANT: Re-fetch fresh body state to find Colony Ship created earlier in this function
+          // (the original 'state' variable is stale if Colony Ship was just created)
+          const currentBody = this.gameState.getBody(starportBodyId);
+          if (currentBody && currentBody.systemId === destination.id) {
+            // Find the Colony Ship to replace using fresh state
+            const freshState = this.gameState.getState();
+            const colonyShipFacility = currentBody.facilityIds
+              .map(id => freshState.facilities[id])
               .find(f => f && f.definitionId === FacilityId.ColonyShip);
 
             // Create Trade Outpost directly (colonization resources consumed above)
@@ -729,20 +738,24 @@ export class ColonizationService {
             this.gameState.addFacility(tradeOutpost);
 
             if (colonyShipFacility) {
-              // Replace Colony Ship with Trade Outpost in a single update (net zero slot change)
+              // Replace Colony Ship with Trade Outpost
+              // Colony Ship uses 1 orbital slot, Trade Outpost uses 1 orbital slot = net zero slot change
               this.gameState.removeFacility(colonyShipFacility.id);
               this.gameState.updateBody(starportBodyId, {
-                facilityIds: [...targetBody.facilityIds.filter(id => id !== colonyShipFacility.id), tradeOutpostId]
+                facilityIds: [...currentBody.facilityIds.filter(id => id !== colonyShipFacility.id), tradeOutpostId]
               });
-              debugLog('Colonization', 'Colony Ship replaced with Trade Outpost on', targetBody.name);
+              debugLog('Colonization', 'Colony Ship replaced with Trade Outpost on', currentBody.name);
             } else {
-              // No Colony Ship found - just add Trade Outpost
+              // No Colony Ship found - just add Trade Outpost (increment slot count)
               this.gameState.updateBody(starportBodyId, {
-                usedOrbitalSlots: targetBody.usedOrbitalSlots + 1,
-                facilityIds: [...targetBody.facilityIds, tradeOutpostId]
+                usedOrbitalSlots: currentBody.usedOrbitalSlots + 1,
+                facilityIds: [...currentBody.facilityIds, tradeOutpostId]
               });
-              debugLog('Colonization', 'Trade Outpost established on', targetBody.name);
+              debugLog('Colonization', 'Trade Outpost established on', currentBody.name);
             }
+
+            // Update body's population floor/ceiling based on its facilities
+            this.updateBodyPopulationLimits(starportBodyId);
 
             // Update system trade station status
             this.gameState.updateSystem(destination.id, {
@@ -768,15 +781,17 @@ export class ColonizationService {
         } else {
           // Fallback: build on first available body with orbital slots
           debugWarn('Colonization', 'No target body specified, using fallback');
+          // Re-fetch fresh state to get current body data
+          const freshState = this.gameState.getState();
           const bodiesWithOrbitalSlots = destination.bodyIds
-            .map(id => state.bodies[id])
+            .map(id => freshState.bodies[id])
             .filter(b => b && b.orbitalSlots > 0);
           if (bodiesWithOrbitalSlots.length > 0) {
             const fallbackBody = bodiesWithOrbitalSlots[0];
 
-            // Find the Colony Ship to replace
+            // Find the Colony Ship to replace using fresh state
             const colonyShipFacility = fallbackBody.facilityIds
-              .map(id => state.facilities[id])
+              .map(id => freshState.facilities[id])
               .find(f => f && f.definitionId === FacilityId.ColonyShip);
 
             // Create Trade Outpost directly
@@ -793,20 +808,23 @@ export class ColonizationService {
             this.gameState.addFacility(tradeOutpost);
 
             if (colonyShipFacility) {
-              // Replace Colony Ship with Trade Outpost in a single update (net zero slot change)
+              // Replace Colony Ship with Trade Outpost (net zero slot change)
               this.gameState.removeFacility(colonyShipFacility.id);
               this.gameState.updateBody(fallbackBody.id, {
                 facilityIds: [...fallbackBody.facilityIds.filter(id => id !== colonyShipFacility.id), tradeOutpostId]
               });
               debugLog('Colonization', 'Colony Ship replaced with fallback Trade Outpost on', fallbackBody.name);
             } else {
-              // No Colony Ship found - just add Trade Outpost
+              // No Colony Ship found - just add Trade Outpost (increment slot count)
               this.gameState.updateBody(fallbackBody.id, {
                 usedOrbitalSlots: fallbackBody.usedOrbitalSlots + 1,
                 facilityIds: [...fallbackBody.facilityIds, tradeOutpostId]
               });
               debugLog('Colonization', 'Built fallback Trade Outpost on', fallbackBody.name);
             }
+
+            // Update body's population floor/ceiling based on its facilities
+            this.updateBodyPopulationLimits(fallbackBody.id);
 
             this.gameState.updateSystem(destination.id, {
               hasTradeStation: true,
@@ -815,10 +833,18 @@ export class ColonizationService {
           }
         }
 
+        // Enforce population floor now that facilities are built
+        // This ensures population meets the minimum workforce requirements
+        this.enforcePopulationFloor(destination.id);
+
+        // Re-fetch system to get the updated population for the notification
+        const finalSystem = this.gameState.getSystem(destination.id);
+        const finalPopulation = finalSystem?.totalPopulation ?? initialPopulation;
+
         this.gameState.addNotification({
           type: 'success',
           title: 'System Colonized!',
-          message: `${destination.name} is now colonized with ${initialPopulation} colonists and an initial Trade Outpost has been established! (${mission.tripsCompleted} trips completed)`,
+          message: `${destination.name} is now colonized with ${finalPopulation} colonists and an initial Trade Outpost has been established! (${mission.tripsCompleted} trips completed)`,
           systemId: destination.id
         });
       } else {
@@ -1035,5 +1061,95 @@ export class ColonizationService {
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
     return `${days}d ${remainingHours.toFixed(0)}h`;
+  }
+
+  /**
+   * Calculate the population floor for a system based on all its facilities.
+   * Floor = sum of all facility populationFloor values.
+   * Per GDD v6 Section 10.2, population cannot fall below this value.
+   */
+  private calculateSystemPopulationFloor(systemId: string): number {
+    const state = this.gameState.getState();
+    const system = state.systems[systemId];
+    if (!system) return 0;
+
+    let floor = 0;
+    for (const bodyId of system.bodyIds) {
+      const body = state.bodies[bodyId];
+      if (!body) continue;
+
+      for (const facilityId of body.facilityIds) {
+        const facility = state.facilities[facilityId];
+        if (!facility || !facility.operational) continue;
+
+        const def = FACILITY_DEFINITIONS[facility.definitionId];
+        if (def) {
+          floor += def.populationFloor;
+        }
+      }
+    }
+
+    return floor;
+  }
+
+  /**
+   * Enforce the population floor for a newly colonized system.
+   * If current population is below the floor, bump it up.
+   * Called after building facilities to ensure minimum workforce is present.
+   */
+  private enforcePopulationFloor(systemId: string): void {
+    const floor = this.calculateSystemPopulationFloor(systemId);
+    const system = this.gameState.getSystem(systemId);
+
+    if (system && system.totalPopulation < floor) {
+      debugLog('Colonization', 'Enforcing population floor', {
+        systemId,
+        currentPop: system.totalPopulation,
+        floor
+      });
+      this.gameState.updateSystem(systemId, { totalPopulation: floor });
+    }
+  }
+
+  /**
+   * Update a body's population floor and ceiling based on its facilities.
+   * Called after building facilities to ensure the body's population limits are current.
+   * Per GDD v6 Section 10.2-10.5:
+   * - Floor = sum of all facility populationFloor values
+   * - Ceiling = sum of (facility populationCeiling * body type multiplier)
+   */
+  private updateBodyPopulationLimits(bodyId: string): void {
+    const state = this.gameState.getState();
+    const body = state.bodies[bodyId];
+    if (!body) return;
+
+    const bodyTypeDef = BODY_TYPE_DEFINITIONS[body.type];
+    const bodyMultiplier = bodyTypeDef?.populationMultiplier ?? 1;
+
+    let floor = 0;
+    let ceiling = 0;
+
+    for (const facilityId of body.facilityIds) {
+      const facility = state.facilities[facilityId];
+      if (!facility || !facility.operational) continue;
+
+      const def = FACILITY_DEFINITIONS[facility.definitionId];
+      if (def) {
+        floor += def.populationFloor;
+        ceiling += def.populationCeiling * bodyMultiplier;
+      }
+    }
+
+    this.gameState.updateBody(bodyId, {
+      populationFloor: floor,
+      populationCeiling: Math.round(ceiling)
+    });
+
+    debugLog('Colonization', 'Updated body population limits', {
+      bodyId,
+      bodyName: body.name,
+      floor,
+      ceiling: Math.round(ceiling)
+    });
   }
 }

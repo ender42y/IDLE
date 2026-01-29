@@ -15,6 +15,7 @@ import {
 import { CelestialBody, BodyType, BodyFeature } from '../models/celestial-body.model';
 import { Facility, FacilityId } from '../models/facility.model';
 import { Ship, ShipType, ShipSize, ShipTier, ShipStatus, TradeRoute, ScoutMission, TradeTrip, TradeMission } from '../models/ship.model';
+import { TransportMission } from '../models/transport-mission.model';
 import { ResourceId, ResourceStock, RESOURCE_DEFINITIONS } from '../models/resource.model';
 import { PrestigeState, INITIAL_PRESTIGE_STATE } from '../models/prestige.model';
 
@@ -62,6 +63,7 @@ export class GameStateService {
   readonly ships = computed(() => this._gameState().ships);
   readonly tradeRoutes = computed(() => this._gameState().tradeRoutes);
   readonly scoutMissions = computed(() => this._gameState().scoutMissions);
+  readonly transportMissions = computed(() => this._gameState().transportMissions);
   readonly notifications = computed(() => this._gameState().notifications);
   readonly stats = computed(() => this._gameState().stats);
   readonly settings = computed(() => this._gameState().settings);
@@ -292,6 +294,35 @@ export class GameStateService {
     });
   }
 
+  // GDD v6 Section 15: Transport mission operations
+  addTransportMission(mission: TransportMission): void {
+    this._gameState.update(state => ({
+      ...state,
+      transportMissions: { ...state.transportMissions, [mission.id]: mission }
+    }));
+  }
+
+  updateTransportMission(missionId: string, updates: Partial<TransportMission>): void {
+    this._gameState.update(state => ({
+      ...state,
+      transportMissions: {
+        ...state.transportMissions,
+        [missionId]: { ...state.transportMissions[missionId], ...updates }
+      }
+    }));
+  }
+
+  removeTransportMission(missionId: string): void {
+    this._gameState.update(state => {
+      const { [missionId]: removed, ...remaining } = state.transportMissions;
+      return { ...state, transportMissions: remaining };
+    });
+  }
+
+  getTransportMission(missionId: string): TransportMission | undefined {
+    return this._gameState().transportMissions[missionId];
+  }
+
   // GDD v6: Prestige operations
   setPrestigeState(prestige: PrestigeState): void {
     this._gameState.update(state => ({
@@ -345,6 +376,7 @@ export class GameStateService {
       scoutMissions: {},
       activeTrips: {},
       tradeMissions: {},
+      transportMissions: {},
       credits: 10000,
       explorationFrontier: [],
       nextDiscoveryDistance: 5,
@@ -601,6 +633,11 @@ export class GameStateService {
         migrated.tradeMissions = {};
       }
 
+      // Add transportMissions if missing (GDD v6 Section 15)
+      if (!migrated.transportMissions) {
+        migrated.transportMissions = {};
+      }
+
       // Add prestige state if missing
       if (!migrated.prestige) {
         migrated.prestige = INITIAL_PRESTIGE_STATE;
@@ -703,6 +740,7 @@ export class GameStateService {
       scoutMissions: {},
       activeTrips: {},
       tradeMissions: {},
+      transportMissions: {},
       explorationFrontier: [],
       nextDiscoveryDistance: 5,
       selectedSystemId: null,

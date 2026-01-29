@@ -348,3 +348,217 @@
   width: 100%;
   margin-top: 0.5rem;
 }
+
+/* Transport Controls */
+.transport-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #3a3a5a;
+}
+
+.transport-controls h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.transport-btn {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.no-destinations {
+  color: #888;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.transport-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.transport-step {
+  margin-bottom: 1.5rem;
+}
+
+.transport-step h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #b39ddb;
+}
+
+/* Mission Type Selector */
+.mission-type-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.type-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  color: #fff;
+}
+
+.type-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.type-btn.selected {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.15);
+}
+
+.type-desc {
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
+/* Cargo Configuration */
+.cargo-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cargo-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.cargo-item select,
+.cargo-item input[type="number"] {
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.cargo-item select {
+  flex: 2;
+}
+
+.cargo-item input[type="number"] {
+  flex: 1;
+}
+
+/* Transport Actions */
+.transport-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.transport-actions .send-btn {
+  width: 100%;
+}
+
+/* Active Transport Missions */
+.active-transport-missions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.active-transport-missions h5 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: #4fc3f7;
+}
+
+.transport-mission-card {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 0.75rem;
+}
+
+.mission-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.mission-type-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(124, 77, 255, 0.3);
+  color: #b39ddb;
+  text-transform: capitalize;
+}
+
+.mission-route {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.arrow {
+  color: #4fc3f7;
+  margin: 0 0.5rem;
+}
+
+.mission-status {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.status-text {
+  color: #ff9800;
+  font-weight: 500;
+}
+
+.mission-cargo {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: #888;
+}
+
+.cargo-label {
+  font-weight: 600;
+  color: #aaa;
+}
+
+.mission-stats {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.transport-mission-card .cancel-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.ship-location {
+  font-size: 0.75rem;
+  color: #888;
+  margin-left: 0.5rem;
+}

@@ -373,85 +373,622 @@ Colonized systems unlock:
 •	Trade routes: Establish regular shipping once production begins
 Development priority is player's choice based on body types and strategic goals.
  
-15. Trade & Logistics
+15. Supply Transport & Logistics
 15.1 Overview
-Trade moves resources between systems. Two mission types exist: one-time missions for specific shipments, and recurring trade routes for automated ongoing commerce. This enables system specialization—smaller systems can focus on one production chain and trade for everything else.
-15.2 Trade Stations
+The supply transport system enables resource movement between star systems, supporting system specialization and trade networks. Three mission types exist: one-way missions for ship repositioning or one-time deliveries, round-trip missions for fetch quests, and recurring trade routes for automated ongoing commerce.
+
+Design Philosophy:
+•	Ship-centric: Each ship is individually assigned to missions or routes
+•	Just-in-time loading: Resources loaded when ship arrives (except one-time missions which reserve upfront)
+•	Player agency: Empty cargo legs and inefficient routes are allowed—players choose their own efficiency level
+•	System-wide storage: Resources tracked per system, not per individual station
+
+15.2 Storage Model
+Resources are tracked at the system level with shared storage pools:
+•	Each system has one resource pool per resource type
+•	Storage capacity = sum of all trade facility capacities in system
+•	Ships can dock at any appropriate-tier station and access the shared system pool
+•	Internal distribution is abstracted (implied shuttles/pipelines within system)
+
+Trade Station Storage Capacities:
+Tier	Name	Base Capacity
+1	Trade Outpost	5,000 t
+2	Trade Station	25,000 t
+3	Trade Hub	100,000 t
+
+Example: System with 2 Trade Outposts + 1 Trade Station = 35,000t total storage capacity.
+
+15.3 Trade Station Docking Requirements
 Trade station tier determines which ship sizes can dock. Requirements apply to BOTH origin and destination—you cannot send a large ship to a small port.
-Tier	Name	Capacity	Ships Allowed
-1	Trade Outpost	Low	Light only
-2	Trade Station	Medium	Light, Medium
-3	Trade Hub	High	All sizes
+
+Tier	Name	Ships Allowed
+1	Trade Outpost	Light only
+2	Trade Station	Light, Medium
+3	Trade Hub	All sizes
+
+Validation:
+•	Enforced when setting up missions/routes (upfront check)
+•	If station tier downgraded after route established, ship may become stranded
+•	Player receives warning notification if ship can no longer dock
+
 Design Note: Like real-world shipping, you can't send a Panamax cargo ship to a small fishing village. Large ships require large ports; smaller ships or multiple trips handle distribution to smaller locations.
-15.3 One-Time Missions
-Flexible cargo delivery for specific needs. Two variants:
-One-Way Mission:
-•	Select ship, origin (ship's current location), destination
-•	Configure cargo to deliver
-•	Ship travels to destination, unloads, stays there
-•	Ship available for new mission at destination
-•	Fuel consumed from origin system
-Round-Trip Mission:
-•	Select ship, origin, destination
-•	Configure outbound cargo (origin → destination)
-•	Configure return cargo (destination → origin)
-•	Ship completes round trip, returns to origin
-•	Fuel consumed from origin for entire round trip
-15.4 Trade Routes (Recurring)
-Automated commerce loops for ongoing resource exchange between systems.
-Setup:
-•	Select ship, System A, System B
-•	Configure A→B cargo (resource type, amount up to capacity)
-•	Configure B→A cargo (resource type, amount, or "Nothing")
-•	Route repeats indefinitely until cancelled
+
+15.4 One-Time Missions
+Flexible cargo delivery for specific needs or ship repositioning. Two variants:
+
+15.4.1 One-Way Mission
+Ship relocates to destination permanently.
+
+Setup Flow:
+1.	Select idle freighter ship
+2.	Origin defaults to ship's current location
+3.	Select destination system
+4.	Configure cargo: Add resource types and fixed amounts
+5.	System validates:
+    a.	Origin has sufficient resources
+    b.	Origin has sufficient fuel for trip
+    c.	Both stations support ship size
+6.	Resources and fuel RESERVED at origin immediately
+7.	Mission launches
+
+Mission Lifecycle:
+1.	Ship status: InTransit
+2.	Resources deducted from origin storage
+3.	Fuel consumed from origin (calculated for loaded cargo weight)
+4.	Ship travels to destination
+5.	Ship arrives at destination
+6.	Cargo unloaded to destination storage (see 15.4.3 for full storage handling)
+7.	Ship status: Idle at destination
+8.	Ship available for new mission
+
+Use Cases:
+•	Relocating ships to where they're needed
+•	One-time bulk deliveries for construction projects
+•	Initial supply runs to new colonies
+
+15.4.2 Round-Trip Mission
+Ship delivers outbound cargo, optionally fetches return cargo, and returns to origin.
+
+Setup Flow:
+1.	Select idle freighter ship
+2.	Origin defaults to ship's current location
+3.	Select destination system
+4.	Configure outbound cargo: Add resource types and fixed amounts
+5.	Configure return cargo: Add resource types and fixed amounts (optional, can be empty)
+6.	System validates:
+    a.	Origin has sufficient outbound resources
+    b.	Origin has sufficient fuel for ENTIRE round trip (both legs)
+    c.	Destination has sufficient return resources (if return cargo specified)
+    d.	Both stations support ship size
+    e.	Each cargo direction fits within ship capacity
+7.	All resources and fuel RESERVED at origin immediately
+8.	Return resources RESERVED at destination immediately
+9.	Mission launches
+
+Mission Lifecycle:
+1.	Ship status: InTransit (outbound)
+2.	Outbound resources deducted from origin storage
+3.	Full round-trip fuel consumed from origin
+4.	Ship travels to destination
+5.	Ship arrives at destination
+6.	Outbound cargo unloaded to destination storage
+7.	Return cargo loaded from destination storage (already reserved)
+8.	Ship status: InTransit (returning)
+9.	Ship travels back to origin
+10.	Ship arrives at origin
+11.	Return cargo unloaded to origin storage
+12.	Ship status: Idle at origin
+13.	Mission complete
+
+Use Cases:
+•	Fetch quests: "Go get 500t Rare Earths from System B"
+•	Balanced trades: Deliver food, bring back components
+•	Supply runs where origin covers all costs (fuel + return cargo)
+
+Fuel Note: Origin must have enough fuel for both legs calculated at heaviest load (outbound vs return). This simplifies logistics—ship carries all needed fuel from start.
+
+15.4.3 Storage Overflow Handling
+When ship arrives at destination to unload cargo, storage may be insufficient:
+
+Scenario: Ship carrying 500t Steel, destination storage has 50t free space.
+
 Behavior:
-•	Ship loads cargo at current system
-•	Travels to destination, unloads
-•	Loads return cargo (if configured)
-•	Returns to origin, unloads, repeats
-Empty Legs:
-•	Either direction can be "Nothing" (empty cargo)
-•	Useful for new colonies with no exports yet
-•	Inefficient—wastes capacity and fuel
-•	Players encouraged to find balanced two-way trades
-Multiple Ships:
-•	Routes are ship-specific missions, not limited slots
-•	Multiple ships can run identical A↔B routes
-•	Increases throughput on high-volume routes
-•	Ships operate independently (no automatic staggering)
-15.5 Fuel Consumption
-Each leg of travel consumes fuel from the departure system:
-•	One-way mission: Fuel from origin
-•	Round-trip mission: All fuel from origin (ship carries enough for return)
-•	Trade route (recurring): Each leg from its departure system
-Fuel Formula:
-fuel_cost = base_fuel × cargo_weight_modifier × distance_modifier
-•	base_fuel: Ship-specific fuel efficiency
-•	cargo_weight_modifier: Heavier cargo = more fuel
-•	distance_modifier: Longer routes = more fuel (slightly exponential)
-Important: New colonies without fuel production cannot fuel return trips from trade routes. Either ship fuel to them first, or use round-trip missions from established systems.
-15.6 Travel Time
-travel_time = base_time × distance_modifier / ship_speed_modifier
-•	Light ships: Fastest
-•	Medium ships: Moderate
-•	Heavy ships: Slow
-•	Bulk haulers: Slowest
-15.7 Communications Bonuses
-Communications infrastructure improves trade efficiency. Bonuses apply when Comms facilities cover BOTH endpoints of a route:
-Facility	Travel Time	Fuel Cost	Reliability
-Comms Outpost	-5%	-5%	+5%
-Comms Station	-10%	-10%	+10%
-Comms Hub	-15%	-15%	+15%
-Coverage Range: Outpost 10ly, Station 20ly, Hub 30ly. Systems within range benefit from the bonus.
-Reliability affects ship breakdown chances during transit. Higher reliability = fewer mishaps.
-15.8 Galactic Market
+•	Ship attempts to unload
+•	Only 50t can fit in storage
+•	Remaining 450t stays on ship
+•	Ship status: Idle (with cargo still aboard)
+•	Ship cannot accept new missions while carrying cargo
+•	Notification: "Storage full at [System]—[Ship] waiting to unload [Resource]"
+
+Resolution:
+•	Player must free up storage space (consume resources, upgrade station, sell on market)
+•	Ship automatically completes unload when space becomes available
+•	Ship then becomes available for new missions
+
+Design Intent: Teaches good logistics planning. Players must ensure destination has adequate storage before sending large shipments.
+
+15.5 Recurring Trade Routes
+Automated commerce loops for ongoing resource exchange between systems. Each ship is individually configured with its own route.
+
+15.5.1 Route Setup
+Ship-centric configuration flow:
+
+1.	Select idle freighter ship
+2.	Choose "Set Up Trade Route"
+3.	Origin: Ship's current system (System A)
+4.	Select destination system (System B)
+5.	Configure outbound cargo (A → B):
+    •	Add resource types with fixed amounts per trip
+    •	Can be empty (0 resources)
+    •	Total must not exceed ship capacity
+6.	Configure return cargo (B → A):
+    •	Add resource types with fixed amounts per trip
+    •	Can be empty (0 resources)
+    •	Total must not exceed ship capacity
+7.	System validates:
+    •	Both stations support ship size
+    •	Each direction's cargo fits ship capacity
+    •	At least one direction has cargo OR both are empty (empty both = repositioning loop)
+8.	Route activated—ship begins first cycle
+
+UI Warning: If both directions are empty, display: "Warning: Empty trade route—ship will burn fuel without delivering value. Useful for repositioning only."
+
+15.5.2 Route Lifecycle (Full Cycle)
+Routes repeat indefinitely until player cancels or ship becomes stranded.
+
+Phase 1: At Origin (System A), Preparing Outbound
+1.	Ship status: Idle at System A
+2.	Check if outbound cargo available (Just-In-Time):
+    a.	For each requested resource, check System A storage
+    b.	If amount available ≥ requested: Load full amount
+    c.	If 0 < amount available < requested: Load partial amount (see 15.5.4)
+    d.	If amount available = 0: Ship waits (see 15.5.5)
+3.	Calculate outbound fuel cost based on ACTUAL loaded cargo weight
+4.	Check if fuel available at System A:
+    a.	If fuel available ≥ fuel cost: Consume fuel, proceed
+    b.	If fuel available < fuel cost: Ship waits for fuel (see 15.5.5)
+5.	Deduct loaded cargo and fuel from System A storage
+6.	Ship status: InTransit to System B
+7.	Ship travels to destination
+
+Phase 2: At Destination (System B), Unloading and Preparing Return
+1.	Ship arrives at System B
+2.	Attempt to unload cargo:
+    a.	Check available storage capacity at System B
+    b.	Unload as much as fits
+    c.	If storage full, cargo remains on ship (see 15.5.6)
+3.	Check if return cargo available (Just-In-Time):
+    a.	For each requested resource, check System B storage
+    b.	Load full or partial amounts (same logic as Phase 1)
+    c.	If any resource has 0 available: Ship waits
+4.	Calculate return fuel cost based on ACTUAL loaded return cargo weight
+5.	Check if fuel available at System B:
+    a.	If fuel available ≥ fuel cost: Consume fuel, proceed
+    b.	If fuel available < fuel cost: Ship waits for fuel
+6.	Deduct loaded return cargo and fuel from System B storage
+7.	Ship status: InTransit to System A
+8.	Ship travels back to origin
+
+Phase 3: Return to Origin (System A)
+1.	Ship arrives at System A
+2.	Attempt to unload return cargo (same overflow handling as Phase 2)
+3.	Repeat from Phase 1 (start next cycle)
+
+Route continues indefinitely until:
+•	Player cancels route (see 15.5.7)
+•	Ship becomes stranded due to missing fuel/cargo
+•	Ship condition drops too low (breakdown mechanics apply)
+
+15.5.3 Just-In-Time (JIT) Loading
+Unlike one-time missions, recurring routes do NOT reserve resources upfront. Resources are checked and loaded when ship arrives.
+
+Rationale:
+•	Routes are long-lived (days/weeks of real-time operation)
+•	Upfront reservation would lock resources indefinitely
+•	JIT adds management gameplay—players must ensure steady production
+•	Allows dynamic resource allocation across multiple routes
+
+Consequence: Routes may stall if production falls behind consumption. This is intended behavior—players must balance supply and demand.
+
+15.5.4 Partial Loading
+When requested cargo amount is not fully available, ship loads what it can and departs.
+
+Example:
+•	Route requests 500t Steel per trip
+•	System A storage has 300t Steel available
+•	Ship loads 300t Steel and departs
+•	Fuel consumed based on 300t (actual weight), not 500t (requested)
+
+Exception: If 0t available, ship waits (see 15.5.5). No point making empty trip.
+
+Benefit: Keeps trade flowing even during resource crunches. Reduced cargo = reduced fuel cost.
+
+Advanced Option (Post-MVP): Add "minimum load threshold" setting—ship waits if cargo below threshold. Example: "Only depart if ≥250t Steel available."
+
+15.5.5 Waiting for Resources or Fuel
+If ship cannot load required cargo or fuel, it enters waiting state.
+
+Behavior:
+•	Ship status: Idle at current system
+•	Route remains active but paused
+•	Ship automatically resumes when resources/fuel become available
+•	No fuel consumed while waiting
+•	Notification: "[Ship] waiting for [Resource/Fuel] at [System]"
+
+Resumption:
+•	Each game tick, check if resources/fuel now available
+•	If available: Load cargo, consume fuel, resume route automatically
+•	No player interaction required
+
+Player Options:
+•	Cancel route (ship becomes Idle, available for new mission)
+•	Manually deliver missing resources via another ship
+•	Adjust production at system to meet demands
+
+Design Intent: Routes should be "set and forget" but require proper infrastructure. If player overcommits routes, ships will wait—feedback to adjust logistics.
+
+15.5.6 Full Storage at Destination
+When ship arrives with cargo but destination storage is full:
+
+Behavior:
+•	Ship cannot unload excess cargo
+•	Cargo remains on ship
+•	Ship enters waiting state at destination
+•	Ship cannot load return cargo until unload completes
+•	Route paused until storage space available
+•	Notification: "Storage full at [System]—[Ship] waiting to unload [Resource]"
+
+Resumption:
+•	Each tick, check if storage space available
+•	When space available: Unload cargo, proceed to load return cargo
+•	Route automatically continues
+
+Prevention:
+•	Destination must consume resources or have adequate storage
+•	Players should upgrade trade stations if seeing frequent full storage warnings
+•	UI should show storage usage % when configuring routes
+
+15.5.7 Route Cancellation
+Player can cancel a route at any time.
+
+Behavior:
+•	If ship is InTransit: Ship completes current leg, then becomes Idle
+•	If ship is Idle (waiting for cargo/fuel): Ship immediately becomes Idle, route cleared
+•	If ship is carrying cargo: Cargo is delivered before becoming Idle (no waste)
+•	If ship is waiting to unload due to full storage: Ship becomes Idle with cargo still aboard
+
+Rationale: Complete current leg to avoid wasting cargo/fuel already committed. Clean cancellation.
+
+Post-Cancellation:
+•	Ship status: Idle at current location
+•	Ship available for new missions
+•	No resources returned to origin (already consumed/delivered)
+
+15.5.8 Empty Cargo Legs
+Both outbound and return cargo can be empty simultaneously.
+
+Use Case: Ship repositioning—move ship from System A to System B without hauling cargo.
+
+Example:
+•	Outbound cargo: Empty (0t)
+•	Return cargo: Empty (0t)
+•	Ship makes round trips between systems, consuming only fuel
+•	Useful for relocating ship or maintaining presence at multiple systems
+
+Efficiency Warning:
+•	UI displays: "Warning: Empty trade route—ship will consume fuel without delivering value."
+•	Players can proceed anyway (useful for repositioning)
+•	No hard block—player agency respected
+
+Design Intent: Allow inefficient choices. Players learn efficiency through experience, not hand-holding.
+
+15.5.9 Multiple Ships on Same Route
+Routes are ship-specific, not shared slots.
+
+Behavior:
+•	Each ship has its own route configuration
+•	Multiple ships can run identical A↔B routes independently
+•	Ships do not coordinate or stagger trips automatically
+•	Each ship operates on its own cycle
+
+Use Cases:
+•	High-volume routes: Assign multiple ships to increase throughput
+•	Redundancy: If one ship breaks down, others continue
+•	Load balancing: Spread cargo across multiple smaller ships vs one large ship
+
+Example:
+•	System A produces 2,000t Steel/hour
+•	System B consumes 2,000t Steel/hour
+•	Assign 4 Medium freighters (500t each) to balance flow
+•	Or assign 1 Heavy freighter (2,000t) for bulk delivery
+
+Player choice: Many small ships (faster trips, more flexible) vs few large ships (better fuel efficiency, fewer trips).
+
+15.6 Fuel Consumption
+Fuel is consumed from the departure system for each leg of travel.
+
+15.6.1 Fuel Formula
+Fuel cost calculated per leg:
+
+fuel_cost = distance × cargo_weight × ship_fuel_efficiency / ship_efficiency_modifier
+
+Where:
+•	distance: Route distance in light-years
+•	cargo_weight: Actual loaded cargo in tonnes (not requested amount)
+•	ship_fuel_efficiency: From ship size definition (Light 0.5, Medium 0.4, Heavy 0.3, Bulk 0.2)
+•	ship_efficiency_modifier: Ship upgrade multiplier (default 1.0)
+
+Example Calculation:
+•	Distance: 10 ly
+•	Cargo: 500t
+•	Ship: Medium freighter (efficiency 0.4)
+•	No upgrades (modifier 1.0)
+•	Fuel cost = 10 × 500 × 0.4 / 1.0 = 2,000t fuel
+
+Empty Cargo: If cargo_weight = 0, fuel cost is minimal (ship still has mass, but abstracted as negligible for gameplay).
+
+15.6.2 Fuel Consumption by Mission Type
+
+One-Way Mission:
+•	Fuel consumed from origin system
+•	Calculated for loaded cargo weight
+•	Consumed at departure
+
+Round-Trip Mission:
+•	ALL fuel consumed from origin system (both legs)
+•	Calculated for heaviest leg (max of outbound vs return cargo weight)
+•	Ship "carries" return fuel from origin
+•	Consumed at departure of first leg
+
+Recurring Route (per leg):
+•	Outbound leg: Fuel consumed from System A (origin)
+•	Return leg: Fuel consumed from System B (destination)
+•	Each leg calculated independently based on actual cargo loaded
+•	Consumed at departure of each leg
+
+Critical Difference: Round-trip missions consume ALL fuel upfront from origin. Recurring routes consume fuel at each departure point. This means new colonies without fuel production cannot support recurring route return legs—use round-trip missions instead or ship fuel first.
+
+15.6.3 Fuel Shortage Handling
+If insufficient fuel available at departure:
+
+Behavior:
+•	Ship cannot depart
+•	Ship status: Idle (waiting for fuel)
+•	Route/mission pauses until fuel available
+•	Notification: "[Ship] waiting for [amount] fuel at [System]"
+
+Resumption:
+•	Each tick, check if fuel now available
+•	If available: Consume fuel, ship departs automatically
+
+Prevention:
+•	Ensure origin/destination systems have fuel production
+•	Use round-trip missions for new colonies (fuel from origin only)
+•	Ship fuel to new colonies before establishing recurring routes
+
+15.7 Travel Time
+Travel time calculated per leg:
+
+travel_time_hours = distance / (ship_speed × ship_speed_modifier)
+
+Where:
+•	distance: Route distance in light-years
+•	ship_speed: From ship size definition (Light 2.0, Medium 1.5, Heavy 1.0, Bulk 0.5 ly/hour)
+•	ship_speed_modifier: Ship upgrade multiplier (default 1.0)
+
+Example Calculation:
+•	Distance: 10 ly
+•	Ship: Medium freighter (speed 1.5 ly/hour)
+•	No upgrades (modifier 1.0)
+•	Travel time = 10 / (1.5 × 1.0) = 6.67 hours
+
+Cargo Weight: Does NOT affect travel time (engines compensate). Only affects fuel consumption.
+
+15.8 Communications Bonuses
+Communications infrastructure improves trade efficiency. Bonuses apply when Comms facilities cover BOTH endpoints of a route.
+
+Facility	Coverage Range	Travel Time	Fuel Cost	Reliability
+Comms Outpost	10 ly	-5%	-5%	+5%
+Comms Station	20 ly	-10%	-10%	+10%
+Comms Hub	30 ly	-15%	-15%	+15%
+
+Coverage Calculation:
+•	Check if System A is within range of any Comms facility
+•	Check if System B is within range of any Comms facility
+•	If BOTH covered: Apply highest tier bonus from either endpoint
+•	If only one covered: No bonus (both endpoints required)
+
+Example:
+•	System A has Comms Station (20 ly range)
+•	System B has no Comms facility
+•	Route distance: 15 ly
+•	System B is within range of System A's Comms Station
+•	Bonus applies: -10% travel time, -10% fuel cost, +10% reliability
+
+Reliability Bonus: Reduces ship breakdown chances during transit (see Section 12.3).
+
+15.9 Ship Status States (MVP)
+Ship status determines availability and current activity. MVP uses simplified two-state model:
+
+Idle:
+•	Ship is at a system, available for new missions
+•	May be waiting for cargo/fuel (route still active but paused)
+•	May be carrying cargo if unload failed due to full storage
+•	Ship cannot accept new missions while carrying undelivered cargo
+
+InTransit:
+•	Ship is traveling between systems OR handling cargo at destination
+•	Loading and unloading are instantaneous upon arrival (abstracted)
+•	Cannot be reassigned until arrival and cargo handling complete
+•	May be on one-time mission or recurring route leg
+
+Post-MVP Ship Status Additions:
+•	Loading: Ship at station, loading cargo (adds time delay)
+•	Unloading: Ship at station, unloading cargo (adds time delay)
+•	Stranded: Ship breakdown, needs rescue (see Section 12.3)
+•	Lost: Ship destroyed, route automatically cancelled
+
+15.9.1 Recurring Route Lifecycle (Detailed)
+Complete step-by-step flow for a recurring trade route cycle:
+
+Phase 1: At Origin, Preparing Outbound
+1.	Ship at Origin (Idle or completing previous cycle)
+2.	Check outbound cargo availability (JIT):
+    a.	For each requested resource, check origin storage
+    b.	If full amount available: Load full amount
+    c.	If partial amount available (>0): Load partial, proceed
+    d.	If zero available: Ship waits at Origin
+3.	Check outbound fuel availability:
+    a.	Calculate fuel cost based on ACTUAL loaded cargo weight
+    b.	If fuel available: Consume fuel, proceed
+    c.	If fuel unavailable: Ship waits at Origin
+4.	If waiting (cargo or fuel):
+    a.	Ship status: Idle at Origin
+    b.	Notification: "[Ship] waiting for [Resource/Fuel] at [Origin]"
+    c.	Each tick, re-check availability; resume automatically when met
+5.	If proceeding:
+    a.	Deduct cargo from origin storage
+    b.	Deduct fuel from origin storage
+    c.	Ship status: InTransit
+    d.	Ship departs for destination
+
+Phase 2: Travel to Destination
+1.	Travel time calculated: distance / (ship_speed × modifiers)
+2.	Ship arrives at destination
+
+Phase 3: At Destination, Unloading and Preparing Return
+1.	Attempt to unload outbound cargo:
+    a.	Check destination storage capacity
+    b.	If space available: Unload all cargo
+    c.	If storage full: Wait with cargo aboard
+    d.	Notification if waiting: "Storage full at [Destination]—[Ship] waiting to unload"
+    e.	Each tick, re-check storage; unload automatically when space available
+2.	After unload complete, check return cargo availability (JIT):
+    a.	For each requested return resource, check destination storage
+    b.	If full amount available: Load full amount
+    c.	If partial amount available (>0): Load partial, proceed
+    d.	If zero available: Ship waits at Destination
+3.	Check return fuel availability at DESTINATION:
+    a.	Calculate fuel cost based on ACTUAL loaded return cargo weight
+    b.	If fuel available: Consume fuel, proceed
+    c.	If fuel unavailable: Ship waits at Destination
+4.	If waiting (cargo or fuel):
+    a.	Ship status: Idle at Destination
+    b.	Notification sent
+    c.	Each tick, re-check; resume automatically when met
+5.	If proceeding:
+    a.	Deduct return cargo from destination storage
+    b.	Deduct fuel from destination storage
+    c.	Ship status: InTransit
+    d.	Ship departs for origin
+
+Phase 4: Travel to Origin
+1.	Travel time calculated
+2.	Ship arrives at origin
+
+Phase 5: At Origin, Completing Cycle
+1.	Attempt to unload return cargo:
+    a.	Check origin storage capacity
+    b.	If space available: Unload all cargo
+    c.	If storage full: Wait with cargo aboard
+2.	After unload complete: Begin next cycle (return to Phase 1)
+
+Route continues indefinitely until:
+•	Player cancels route
+•	Ship becomes stranded due to prolonged fuel/cargo shortage
+•	Ship condition drops too low (breakdown mechanics)
+
+15.10 UI Elements for Transport System
+Key UI components needed for implementation:
+
+15.10.1 Fleet View
+•	List all ships with current status
+•	Filter by: Idle, InTransit, Waiting
+•	Show current location, destination, cargo, ETA
+•	Quick actions: "Assign Mission", "Cancel Route", "View Details"
+
+15.10.2 Mission Configuration Dialog
+Ship-centric flow:
+1.	Select ship from fleet
+2.	Choose mission type: One-Way, Round-Trip, or Recurring Route
+3.	Select destination system (dropdown or galaxy map click)
+4.	Configure cargo:
+    •	"Add Resource" button
+    •	Resource dropdown + amount input
+    •	Show running total vs ship capacity
+    •	"Remove" button per resource
+5.	For round-trip/recurring: Separate sections for outbound and return cargo
+6.	Show calculated fuel cost, travel time, ETA
+7.	Show warnings: Empty legs, fuel shortage, storage concerns
+8.	"Launch Mission" button (validates and confirms)
+
+15.10.3 Active Route Display
+For ships on recurring routes:
+•	Show route name: "[Ship] → [Origin] ↔ [Destination]"
+•	Show outbound cargo config
+•	Show return cargo config
+•	Show current phase: "At Origin", "Outbound", "At Destination", "Returning", "Waiting for [Resource]"
+•	Show trips completed counter
+•	"Cancel Route" button
+
+15.10.4 System Storage View
+Show per-system storage status:
+•	Resource list with current amount and capacity
+•	Usage percentage bar (visual indicator)
+•	Warning if >80% full
+•	Alert if 100% full with ships waiting to unload
+
+15.10.5 Validation Messages
+Real-time feedback during mission config:
+•	"Insufficient [Resource] at origin" (red)
+•	"Insufficient fuel at origin" (red)
+•	"Station tier too low for ship size" (red)
+•	"Cargo exceeds ship capacity" (red)
+•	"Warning: Empty cargo leg—fuel cost with no delivery" (yellow)
+•	"Warning: Destination storage may be insufficient" (yellow)
+•	"Ready to launch" (green)
+
+15.11 Galactic Market
 Instant buy/sell for any resource, no shipping required. Convenience at a cost:
-•	Sell price: 75-90% of base value
+•	Sell price: 75-90% of base value (randomized per transaction)
 •	Buy price: 100% of base value
 •	Spread: 10-25% lost vs. direct trade
 •	Finance economy: Reduces spread (better rates)
-Design Intent: Galactic market is for convenience and emergencies. Physical trade routes are more efficient for ongoing commerce.
+•	No fuel cost, no travel time, no ship required
+
+Use Cases:
+•	Emergency resource acquisition
+•	Dumping excess production when storage full
+•	Quick credits when needed
+•	Convenience when physical trade is impractical
+
+Design Intent: Galactic market is for convenience and emergencies. Physical trade routes are more efficient for ongoing commerce but require infrastructure and planning.
  
+15.12 Integration Notes
+The supply transport system shares infrastructure with other game systems:
+
+Shared with Colonization:
+•	Ship travel time calculations (distance / ship_speed)
+•	Fuel consumption calculations (distance × cargo × efficiency)
+•	Ship status management (Idle, InTransit states)
+•	Trade station docking requirements (ship size vs station tier)
+
+Shared with Notifications:
+•	All waiting states trigger player notifications
+•	Prolonged waiting generates reminder notifications
+•	Mission completion notifications
+
+Independent Systems:
+•	Transport service is independent from colonization service
+•	Ships can be used for either transport OR colonization, not both simultaneously
+•	A ship on a transport mission cannot be assigned to colonization until mission completes/cancels
+
+Post-MVP Cargo Options:
+•	"Fill to capacity": Load as much as available up to ship capacity
+•	Percentage-based: "Load 50% of available Steel"
+•	Minimum threshold: "Only depart if at least 250t available"
+•	Priority ordering: "Load Steel first, then Glass with remaining capacity"
+
 16. Facility Production Trees (Build UI)
 16.1 Overview
 The Build interface displays facilities organized by production chains in a tabbed view. Each tab shows one resource chain with visual dependency arrows showing input/output relationships.
